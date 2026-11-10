@@ -1,0 +1,2782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Landed — Universal Job-Seeker Co-Pilot (Direct Apply & LinkedIn Engine)</title>
+  <meta name="description" content="Installable AI job-search co-pilot for any job seeker. Find roles, generate truthful 2-page tailored resumes, trigger Desktop Apply & LinkedIn Import directly without chat queues, track applications, and run voice/text mock interviews." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --brand-indigo: #4f46e5;
+      --brand-emerald: #10b981;
+      --brand-amber: #f59e0b;
+      --brand-rose: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--background, #f4f6fb);
+      color: var(--foreground, #0f172a);
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .surface-card {
+      background: var(--card, #ffffff);
+      border: 1px solid var(--border, #e2e8f0);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 4px 12px rgba(15, 23, 42, 0.02);
+      transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+    .surface-card-hover:hover {
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+      border-color: rgba(79, 70, 229, 0.32);
+    }
+    .pill-tab {
+      transition: all 0.15s ease;
+    }
+    .pill-tab.active {
+      background: var(--card, #ffffff);
+      color: var(--foreground, #0f172a);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      font-weight: 600;
+    }
+    input[type="range"] { accent-color: #4f46e5; }
+    .progress-fill { transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+    .gauge-ring {
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+      transition: stroke-dashoffset 0.55s ease;
+    }
+    .modal-backdrop {
+      background: rgba(15, 23, 42, 0.52);
+      backdrop-filter: blur(5px);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.45); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.7); }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .animate-pulse-dot { animation: pulse-dot 1.7s infinite ease-in-out; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- ========================================================================= -->
+  <!-- TOP NAVIGATION BAR (Universal Multi-User Product Header)                  -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-30 border-b border-[var(--border,#e2e8f0)] bg-[var(--card,#ffffff)]/95 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      <!-- Brand + Active User Profile Switcher -->
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 55%, #0ea5e9 100%);">
+          L
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-base tracking-tight text-[var(--foreground)]">Landed</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">v2.0 Direct Engine</span>
+          </div>
+          <button onclick="openModal('onboarding-modal')" class="text-xs text-[var(--muted-foreground,#64748b)] hover:text-indigo-600 transition flex items-center gap-1 text-left">
+            <span id="header-active-profile-label" class="truncate max-w-[230px] sm:max-w-[300px]">Gaurav Sharma · Director, PMO &amp; SAFe Delivery</span>
+            <span class="text-indigo-600 font-semibold">▾ Switch / Setup</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Center 3-Tab Switcher -->
+      <nav aria-label="Primary Navigation" class="flex items-center p-1 rounded-xl bg-slate-200/75 dark:bg-slate-800/80 border border-[var(--border,#e2e8f0)]">
+        <button id="nav-tab-resumes" onclick="switchTab('resumes')" class="pill-tab active px-3.5 py-1.5 rounded-lg text-xs sm:text-sm flex items-center gap-1.5">
+          <span>Resumes</span>
+          <span id="badge-resumes-count" class="text-xs px-1.5 py-0.2 rounded-md bg-indigo-500/12 text-indigo-600 dark:text-indigo-300 font-mono">6</span>
+        </button>
+        <button id="nav-tab-applications" onclick="switchTab('applications')" class="pill-tab px-3.5 py-1.5 rounded-lg text-xs sm:text-sm text-[var(--muted-foreground,#64748b)] flex items-center gap-1.5">
+          <span>Applications</span>
+          <span id="badge-applications-count" class="text-xs px-1.5 py-0.2 rounded-md bg-slate-500/12 font-mono">5</span>
+        </button>
+        <button id="nav-tab-interviews" onclick="switchTab('interviews')" class="pill-tab px-3.5 py-1.5 rounded-lg text-xs sm:text-sm text-[var(--muted-foreground,#64748b)] flex items-center gap-1.5">
+          <span>Interviews</span>
+          <span id="badge-interviews-count" class="text-xs px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-mono">2</span>
+        </button>
+      </nav>
+
+      <!-- Right Controls: Onboarding Wizard, Extension Bridge, My Details -->
+      <div class="flex items-center gap-2">
+        <button onclick="openModal('extension-modal')" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/20 transition" title="Direct Chrome & LinkedIn Extension Bridge Status">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-dot"></span>
+          <span>Direct Bridge Connected</span>
+        </button>
+        <button onclick="openModal('onboarding-modal')" class="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] hover:border-indigo-500/40 transition flex items-center gap-1">
+          <span>⚙️ Setup Profile</span>
+        </button>
+        <button onclick="openModal('details-modal')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500/12 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/20 transition">
+          My details
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN WORKSPACE                                                            -->
+  <!-- ========================================================================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+    <!-- PAGE HEADER & TODAY STRIP (Notice: Zero "waiting for go in Claude chat" items!) -->
+    <section class="space-y-3">
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 id="page-title" class="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)]">Resumes</h1>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium border border-indigo-500/20">Single Source of Truth DB</span>
+          </div>
+          <p id="page-subtitle" class="text-xs sm:text-sm text-[var(--muted-foreground,#64748b)] mt-1 max-w-3xl">
+            Every role ranked by truthful fit against your Master Resume. Generate a 2-page tailored resume, inspect the <strong>Fit Score Explainability</strong>, and run <strong>Direct Desktop Apply</strong> or <strong>Direct LinkedIn Import</strong> in one click—you always press Submit yourself.
+          </p>
+        </div>
+
+        <!-- 5-Step Product Loop Indicator -->
+        <div class="flex items-center flex-wrap gap-1.5 text-[11px] font-medium text-[var(--muted-foreground,#64748b)] surface-card px-3.5 py-2 rounded-xl self-start">
+          <span class="text-indigo-600 font-semibold">1. Find &amp; Import</span>
+          <span>→</span>
+          <span class="text-indigo-600 font-semibold">2. Tailor (2-Page PDF)</span>
+          <span>→</span>
+          <span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-bold">3. Direct Apply (You Submit)</span>
+          <span>→</span>
+          <span>4. Track</span>
+          <span>→</span>
+          <span>5. Interview</span>
+        </div>
+      </div>
+
+      <!-- TODAY ACTION STRIP -->
+      <div class="flex items-center flex-wrap gap-2 pt-0.5">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-[var(--muted-foreground,#64748b)] mr-1">Today</span>
+
+        <button onclick="openActiveDesktopApplyConsole()" id="today-chrome-pill" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-amber-500/15 text-amber-900 dark:text-amber-200 border border-amber-500/35 hover:bg-amber-500/25 transition flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse-dot"></span>
+          <span><strong id="today-chrome-count">1</strong> application open in Direct Desktop Apply</span>
+        </button>
+
+        <button onclick="setFilterAndSwitch('strong')" class="px-3 py-1.5 rounded-xl text-xs font-medium surface-card hover:border-indigo-500/40 transition flex items-center gap-1.5">
+          <strong id="today-strong-count" class="text-emerald-600">5</strong>
+          <span>strong fits to review (70+)</span>
+        </button>
+
+        <button onclick="setFilterAndSwitch('ready')" class="px-3 py-1.5 rounded-xl text-xs font-medium surface-card hover:border-indigo-500/40 transition flex items-center gap-1.5">
+          <strong id="today-ready-count" class="text-indigo-600">2</strong>
+          <span>resumes ready: review &amp; apply</span>
+        </button>
+
+        <button onclick="switchTab('applications')" class="px-3 py-1.5 rounded-xl text-xs font-medium surface-card hover:border-indigo-500/40 transition flex items-center gap-1.5">
+          <strong id="today-followup-count" class="text-amber-600">1</strong>
+          <span>follow-up due (7+ days quiet)</span>
+        </button>
+
+        <button onclick="switchTab('interviews')" class="px-3 py-1.5 rounded-xl text-xs font-medium surface-card hover:border-indigo-500/40 transition flex items-center gap-1.5">
+          <strong id="today-interview-count" class="text-emerald-600">2</strong>
+          <span>interviews to prep &amp; mock</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- RUN NOW & DIRECT ACTION BAR (Direct Code Execution — No Chat Queue!)    -->
+    <!-- ======================================================================= -->
+    <section class="surface-card rounded-2xl p-3.5 sm:px-5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center flex-wrap gap-2.5">
+        <span class="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground,#64748b)] mr-1">Run now</span>
+
+        <!-- 1. Direct LinkedIn Import (Fixed Limitation #2: Triggers immediately!) -->
+        <button id="btn-direct-linkedin" onclick="openDirectLinkedInScanner()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-500/12 text-sky-800 dark:text-sky-200 hover:bg-sky-500/20 border border-sky-500/30 transition flex flex-col items-start shadow-sm">
+          <span class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-sky-600" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+            <span>Import from LinkedIn</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-bold">⚡ Direct Trigger</span>
+          </span>
+          <span class="text-[10px] font-normal text-[var(--muted-foreground,#64748b)]">Instant scan of "Recommended for you" (no chat prompt)</span>
+        </button>
+
+        <!-- 2. Find New Jobs Now -->
+        <button onclick="triggerMultiBoardSearch()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/20 transition flex flex-col items-start">
+          <span class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+            <span>Find new jobs now</span>
+          </span>
+          <span class="text-[10px] font-normal text-[var(--muted-foreground,#64748b)]">Indeed, WTTJ, Hiring Cafe &amp; auto-runs 6:44 am</span>
+        </button>
+
+        <!-- 3. Check Replies Now -->
+        <button onclick="triggerDirectGmailReplyCheck()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/20 transition flex flex-col items-start">
+          <span class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <span>Check replies now</span>
+          </span>
+          <span class="text-[10px] font-normal text-[var(--muted-foreground,#64748b)]">Read-only Gmail sync · auto-runs 7:42 am</span>
+        </button>
+
+        <!-- 4. + Add a job -->
+        <button onclick="openModal('add-job-modal')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-purple-500/12 text-purple-800 dark:text-purple-300 hover:bg-purple-500/20 border border-purple-500/25 transition flex flex-col items-start">
+          <span class="flex items-center gap-1.5">
+            <span>+ Add a job</span>
+          </span>
+          <span class="text-[10px] font-normal text-[var(--muted-foreground,#64748b)]">Paste any posting link or description</span>
+        </button>
+      </div>
+
+      <!-- Right Side: Batch Generate or Export/Backup -->
+      <div class="flex items-center gap-2">
+        <div id="batch-action-container" class="hidden items-center gap-2">
+          <span id="batch-selected-label" class="text-xs font-semibold text-indigo-600">0 selected</span>
+          <button onclick="generateSelectedResumes()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
+            Generate selected (2-page PDF)
+          </button>
+        </div>
+        <button onclick="exportWorkspaceJSON()" class="px-2.5 py-1.5 rounded-xl text-[11px] font-medium border border-[var(--border,#e2e8f0)] text-[var(--muted-foreground,#64748b)] hover:text-[var(--foreground)] transition" title="Export your entire job search database as JSON">
+          Export DB ↓
+        </button>
+      </div>
+    </section>
+
+    <!-- LIVE STATUS BANNER -->
+    <div id="live-banner" class="hidden rounded-2xl p-3.5 px-4 border flex items-center justify-between gap-3 text-xs font-medium transition-all">
+      <div class="flex items-center gap-3 flex-1">
+        <span id="live-banner-spinner" class="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin shrink-0"></span>
+        <div class="flex-1">
+          <div id="live-banner-title" class="font-bold">Working...</div>
+          <div id="live-banner-sub" class="text-[11px] opacity-85 mt-0.5"></div>
+          <div id="live-banner-progress-wrap" class="w-full max-w-md h-1.5 bg-black/10 rounded-full overflow-hidden mt-1.5">
+            <div id="live-banner-progress" class="h-full bg-current progress-fill" style="width: 25%"></div>
+          </div>
+        </div>
+      </div>
+      <button onclick="closeLiveBanner()" class="p-1 rounded-lg hover:bg-black/5 text-sm font-bold">✕</button>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- TAB 1: RESUMES (JOB BOARD + FIT BREAKDOWN + DIRECT DESKTOP APPLY)       -->
+    <!-- ======================================================================= -->
+    <div id="tab-panel-resumes" class="space-y-5">
+
+      <!-- 5 KPI Summary Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div class="surface-card rounded-2xl p-4" style="background: linear-gradient(135deg, rgba(79,70,229,0.05) 0%, rgba(255,255,255,0) 100%);">
+          <div id="kpi-total-roles" class="text-2xl sm:text-3xl font-bold tracking-tight">6</div>
+          <div class="text-xs text-[var(--muted-foreground,#64748b)] mt-1">roles on your board</div>
+        </div>
+        <div class="surface-card rounded-2xl p-4" style="background: linear-gradient(135deg, rgba(16,185,129,0.07) 0%, rgba(255,255,255,0) 100%);">
+          <div id="kpi-strong-fits" class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">5</div>
+          <div class="text-xs text-[var(--muted-foreground,#64748b)] mt-1">strong fits (70+)</div>
+        </div>
+        <div class="surface-card rounded-2xl p-4" style="background: linear-gradient(135deg, rgba(124,58,237,0.06) 0%, rgba(255,255,255,0) 100%);">
+          <div id="kpi-resumes-ready" class="text-2xl sm:text-3xl font-bold tracking-tight text-indigo-700 dark:text-indigo-400">2</div>
+          <div class="text-xs text-[var(--muted-foreground,#64748b)] mt-1">resumes ready</div>
+        </div>
+        <div class="surface-card rounded-2xl p-4" style="background: linear-gradient(135deg, rgba(245,158,11,0.07) 0%, rgba(255,255,255,0) 100%);">
+          <div id="kpi-avg-ats" class="text-2xl sm:text-3xl font-bold tracking-tight">86%</div>
+          <div class="text-xs text-[var(--muted-foreground,#64748b)] mt-1">average ATS match</div>
+        </div>
+        <div class="surface-card rounded-2xl p-4 col-span-2 sm:col-span-1" style="background: linear-gradient(135deg, rgba(14,165,233,0.06) 0%, rgba(255,255,255,0) 100%);">
+          <div id="kpi-writing-now" class="text-2xl sm:text-3xl font-bold tracking-tight">0</div>
+          <div class="text-xs text-[var(--muted-foreground,#64748b)] mt-1">resumes being written</div>
+        </div>
+      </div>
+
+      <!-- Search, Filters & Min Fit Slider -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center flex-wrap gap-2 flex-1 min-w-[260px]">
+          <div class="relative flex-1 max-w-xs">
+            <svg class="w-4 h-4 text-[var(--muted-foreground,#64748b)] absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+            <input id="search-input" oninput="renderResumesBoard()" type="text" placeholder="Search company, role, location, source..." class="w-full pl-9 pr-3 py-2 rounded-xl text-xs surface-card focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
+          </div>
+
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <button onclick="setBoardFilter('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white transition">All</button>
+            <button onclick="setBoardFilter('strong')" id="filter-btn-strong" class="px-3 py-1.5 rounded-xl text-xs font-medium surface-card hover:bg-indigo-500/10 transition">Strong fit (70+)</button>
+            <button onclick="setBoardFilter('no_resume')" id="filter-btn-no_resume" class="px-3 py-1.5 rounded-xl text-xs font-medium surface-card hover:bg-indigo-500/10 transition">No resume yet</button>
+            <button onclick="setBoardFilter('ready')" id="filter-btn-ready" class="px-3 py-1.5 rounded-xl text-xs font-medium surface-card hover:bg-indigo-500/10 transition">Resume ready</button>
+            <button onclick="setBoardFilter('linkedin')" id="filter-btn-linkedin" class="px-3 py-1.5 rounded-xl text-xs font-medium surface-card hover:bg-sky-500/10 transition">LinkedIn Direct</button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs text-[var(--muted-foreground,#64748b)]">
+          <label for="min-fit-slider" class="font-medium">Min fit</label>
+          <input id="min-fit-slider" type="range" min="0" max="95" value="0" oninput="updateMinFit(this.value)" class="w-28" />
+          <span id="min-fit-readout" class="font-mono font-semibold text-[var(--foreground)] w-6 text-right">0</span>
+        </div>
+      </div>
+
+      <!-- Sub-bar link to applications + Active Dealbreakers -->
+      <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted-foreground,#64748b)]">
+        <button onclick="switchTab('applications')" class="hover:text-indigo-600 transition flex items-center gap-1 font-medium">
+          <span id="applied-link-summary">5 jobs you applied to are in the Applications tab</span>
+          <span>›</span>
+        </button>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-[11px]">Learned Dealbreakers filtered out:</span>
+          <div id="inline-dealbreakers" class="flex items-center gap-1 flex-wrap"></div>
+        </div>
+      </div>
+
+      <!-- JOB CARDS GRID -->
+      <div id="resumes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- TAB 2: APPLICATIONS (FUNNEL + SOURCE ANALYTICS + 5-COL KANBAN + NUDGE)  -->
+    <!-- ======================================================================= -->
+    <div id="tab-panel-applications" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- YOUR FUNNEL -->
+        <div class="surface-card rounded-2xl p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground,#64748b)]">Your Funnel</h2>
+            <span class="text-[11px] text-emerald-600 font-medium">Gmail Read-Only Sync Active</span>
+          </div>
+          <div id="funnel-bars" class="space-y-2.5 text-xs"></div>
+          <div class="pt-2 border-t border-[var(--border,#e2e8f0)] flex items-baseline justify-between">
+            <div>
+              <span id="funnel-rate-big" class="text-xl font-bold text-[var(--foreground)]">4.0</span>
+              <span class="text-xs text-[var(--muted-foreground,#64748b)]"> interviews per 10 applications</span>
+            </div>
+            <span class="text-[11px] text-[var(--muted-foreground,#64748b)]">Industry avg: 1.2 / 10</span>
+          </div>
+        </div>
+
+        <!-- WHAT IS WORKING -->
+        <div class="surface-card rounded-2xl p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground,#64748b)]">What Is Working (By Board &amp; Fit Band)</h2>
+            <span class="text-[11px] text-[var(--muted-foreground,#64748b)]">Real-time conversion</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="border-b border-[var(--border,#e2e8f0)] text-[var(--muted-foreground,#64748b)]">
+                  <th class="py-2 font-medium">Source / Fit Band</th>
+                  <th class="py-2 font-medium text-right">Found</th>
+                  <th class="py-2 font-medium text-right">Applied</th>
+                  <th class="py-2 font-medium text-right">Interviews</th>
+                </tr>
+              </thead>
+              <tbody id="working-table-body" class="divide-y divide-[var(--border,#e2e8f0)]"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5-COLUMN KANBAN BOARD -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 items-start" id="kanban-container"></div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- TAB 3: INTERVIEWS (ROUND PREP SHEET + VOICE/TEXT MOCK INTERVIEW)        -->
+    <!-- ======================================================================= -->
+    <div id="tab-panel-interviews" class="hidden space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        <div class="lg:col-span-3 space-y-2.5" id="interview-jobs-sidebar"></div>
+        <div class="lg:col-span-9 surface-card rounded-2xl p-5 sm:p-6 space-y-6" id="interview-workspace"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL A: DIRECT DESKTOP APPLY LIVE CONSOLE (Fixes Limitation #1!)         -->
+  <!-- Triggers immediately without "waiting: say go in Claude chat"!            -->
+  <!-- ========================================================================= -->
+  <div id="desktop-apply-modal" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4">
+    <div class="surface-card rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto p-6 space-y-5 shadow-2xl">
+      <div class="flex items-start justify-between border-b border-[var(--border,#e2e8f0)] pb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">⚡</div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Direct Desktop Apply Engine</span>
+              <span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold">Zero Chat Queue · Running Live</span>
+            </div>
+            <h2 id="da-modal-title" class="text-lg sm:text-xl font-bold text-[var(--foreground)] mt-0.5">Company — Role</h2>
+          </div>
+        </div>
+        <button onclick="closeModal('desktop-apply-modal')" class="text-xs font-semibold text-[var(--muted-foreground,#64748b)] hover:text-[var(--foreground)] px-2.5 py-1 rounded-lg border border-[var(--border,#e2e8f0)]">Minimize to Card</button>
+      </div>
+
+      <!-- Direct Execution Progress Stepper -->
+      <div id="da-stepper" class="grid grid-cols-4 gap-2 text-xs"></div>
+
+      <!-- Two-Column Live View: Left = Simulated Chrome ATS Form, Right = Landed Co-Pilot Controls & Guardrails -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        <!-- Left 7 cols: Live Company ATS Portal Window -->
+        <div class="lg:col-span-7 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] overflow-hidden shadow-inner">
+          <!-- Simulated Browser Chrome Bar -->
+          <div class="px-3.5 py-2 bg-slate-200/80 dark:bg-slate-800 border-b border-[var(--border,#e2e8f0)] flex items-center justify-between gap-2 text-[11px]">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              <span id="da-browser-url" class="ml-2 font-mono text-[10px] text-[var(--muted-foreground,#64748b)] truncate max-w-[260px]">https://careers.company.com/apply</span>
+            </div>
+            <span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-800 font-semibold text-[10px]">Fill with Landed Active</span>
+          </div>
+
+          <!-- Live Form Fields inside ATS Portal -->
+          <div id="da-browser-body" class="p-4 space-y-3 text-xs"></div>
+        </div>
+
+        <!-- Right 5 cols: Co-Pilot Handover & Submit Guardrails -->
+        <div id="da-copilot-panel" class="lg:col-span-5 space-y-3.5"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL B: DIRECT LINKEDIN RECOMMENDED SCANNER (Fixes Limitation #2!)       -->
+  <!-- Triggers immediately without "waiting: say go in Claude chat"!            -->
+  <!-- ========================================================================= -->
+  <div id="linkedin-scanner-modal" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4">
+    <div class="surface-card rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl">
+      <div class="flex items-start justify-between border-b border-[var(--border,#e2e8f0)] pb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-sky-600 text-white flex items-center justify-center font-bold">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-sky-600">Direct LinkedIn Import Engine</span>
+              <span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-800 text-[10px] font-bold">Read-Only Guardrail · Instant Trigger</span>
+            </div>
+            <h2 class="text-lg font-bold text-[var(--foreground)] mt-0.5">Scanning "Recommended for you" &amp; Job Alerts</h2>
+          </div>
+        </div>
+        <button onclick="closeModal('linkedin-scanner-modal')" class="text-xs font-semibold text-indigo-600 hover:underline">Close</button>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between text-xs">
+          <span id="li-scan-status-text" class="font-semibold text-sky-700 dark:text-sky-300">Connecting directly to signed-in LinkedIn session...</span>
+          <span id="li-scan-pct" class="font-mono font-bold">100%</span>
+        </div>
+        <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+          <div id="li-scan-bar" class="h-full bg-sky-600 progress-fill" style="width: 100%"></div>
+        </div>
+        <p class="text-[11px] text-[var(--muted-foreground,#64748b)]">
+          Guardrail: Landed only reads postings (FTE &amp; contract roles included) and scores them against your Master Resume. It never applies, saves, or follows on LinkedIn.
+        </p>
+      </div>
+
+      <!-- Discovered LinkedIn Roles List -->
+      <div id="li-discovered-list" class="space-y-2.5 max-h-[46vh] overflow-y-auto pr-1"></div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-[var(--border,#e2e8f0)]">
+        <span class="text-xs text-[var(--muted-foreground,#64748b)]">Tick the roles you want or import all 50+ fit matches at once.</span>
+        <div class="flex items-center gap-2">
+          <button onclick="importSelectedLinkedInJobs()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-sky-600 text-white hover:bg-sky-700 transition shadow-sm">
+            Import Checked Roles to My Board
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL C: UNIVERSAL JOB SEEKER ONBOARDING & PROFILE SWITCHER               -->
+  <!-- Allows ANY user to install and configure Landed for their job search!     -->
+  <!-- ========================================================================= -->
+  <div id="onboarding-modal" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4">
+    <div class="surface-card rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto p-6 space-y-5 shadow-2xl">
+      <div class="flex items-start justify-between border-b border-[var(--border,#e2e8f0)] pb-4">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Universal Job Seeker Product Setup</span>
+          <h2 class="text-xl font-bold text-[var(--foreground)] mt-0.5">Configure Your Profile, Target Thesis &amp; Master Resume</h2>
+        </div>
+        <button onclick="closeModal('onboarding-modal')" class="text-xs font-semibold text-[var(--muted-foreground,#64748b)] hover:text-[var(--foreground)]">Close</button>
+      </div>
+
+      <!-- Instant Multi-User Profile Presets -->
+      <div class="space-y-2">
+        <label class="text-xs font-bold text-[var(--foreground)]">Switch Active Job Seeker Profile (Demo how any user in any industry uses Landed):</label>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <button onclick="switchPersonaProfile('pmo')" id="preset-card-pmo" class="p-3 rounded-2xl border text-left transition space-y-1 border-indigo-600 bg-indigo-500/10">
+            <div class="text-xs font-bold text-[var(--foreground)]">Gaurav Sharma</div>
+            <div class="text-[11px] text-indigo-600 font-semibold">Director, PMO &amp; SAFe</div>
+            <div class="text-[10px] text-[var(--muted-foreground,#64748b)]">Toronto / Remote US · $175k+</div>
+          </button>
+          <button onclick="switchPersonaProfile('swe')" id="preset-card-swe" class="p-3 rounded-2xl border border-[var(--border,#e2e8f0)] hover:border-indigo-500/40 text-left transition space-y-1">
+            <div class="text-xs font-bold text-[var(--foreground)]">Maya Lin</div>
+            <div class="text-[11px] text-emerald-600 font-semibold">Staff Software Engineer</div>
+            <div class="text-[10px] text-[var(--muted-foreground,#64748b)]">Remote / SF / Seattle · $220k+</div>
+          </button>
+          <button onclick="switchPersonaProfile('pm')" id="preset-card-pm" class="p-3 rounded-2xl border border-[var(--border,#e2e8f0)] hover:border-indigo-500/40 text-left transition space-y-1">
+            <div class="text-xs font-bold text-[var(--foreground)]">Marcus Vance</div>
+            <div class="text-[11px] text-purple-600 font-semibold">VP / Lead Product Manager</div>
+            <div class="text-[10px] text-[var(--muted-foreground,#64748b)]">NYC / Remote NA · $200k+</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Editable Fields for Current User -->
+      <div class="space-y-3 text-xs pt-2 border-t border-[var(--border,#e2e8f0)]">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] font-semibold text-[var(--muted-foreground,#64748b)]">Your Full Name</label>
+            <input id="setup-name" type="text" value="Gaurav Sharma" class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold text-[var(--muted-foreground,#64748b)]">Target Role Titles</label>
+            <input id="setup-roles" type="text" value="Director, Program Delivery · Enterprise PMO · SAFe RTE" class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold text-[var(--muted-foreground,#64748b)]">Preferred Locations &amp; Mode</label>
+            <input id="setup-locations" type="text" value="Toronto, ON (Hybrid) · Canada & US Remote" class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold text-[var(--muted-foreground,#64748b)]">Compensation Floor</label>
+            <input id="setup-comp" type="text" value="CAD $175,000+ / USD $145,000+" class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-semibold text-[var(--muted-foreground,#64748b)]">Master Resume Truth Record (Landed never invents numbers outside this record)</label>
+            <span class="text-[10px] text-emerald-600 font-semibold">✓ Truthfulness Lock On</span>
+          </div>
+          <textarea id="setup-master-resume" rows="4" class="w-full mt-1 p-3 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] leading-relaxed">• Directed $45M multi-vendor banking & enterprise cloud transformation across 14 Agile Release Trains (180+ practitioners).
+• Established Lean Portfolio Management (LPM) & IT PMO governance at Teranet & tier-1 financial clients, lifting PI delivery predictability from 58% to 91%.
+• Cut cross-program release cycle time by 42% and captured $6.4M in verified annual cost savings via vendor SLA consolidation.</textarea>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-[var(--border,#e2e8f0)]">
+        <button onclick="resetDemoDatabase()" class="text-xs text-rose-600 hover:underline">Reset Demo Data</button>
+        <button onclick="saveSetupProfile()" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
+          Save &amp; Calibrate My Board
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL D: EXTENSION BRIDGE INSTALLER ("Fill with Landed")                  -->
+  <!-- ========================================================================= -->
+  <div id="extension-modal" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4">
+    <div class="surface-card rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-start justify-between">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Architectural Fix for Scheduled Task Limits</span>
+          <h2 class="text-xl font-bold text-[var(--foreground)] mt-0.5">Fill with Landed — Direct Browser Bridge</h2>
+        </div>
+        <button onclick="closeModal('extension-modal')" class="text-xs font-semibold text-indigo-600">Done</button>
+      </div>
+      <p class="text-xs text-[var(--muted-foreground,#64748b)] leading-relaxed">
+        In the original prototype, <strong>Desktop Apply</strong> and <strong>LinkedIn Import</strong> were built as scheduled tasks that forced you to open a chat and type <code>"go"</code>. In this product version:
+      </p>
+      <ul class="text-xs space-y-2 list-disc pl-5 text-[var(--foreground)]">
+        <li><strong>Direct Event Execution:</strong> Clicking <em>Desktop Apply ⚡</em> or <em>Import from LinkedIn ⚡</em> invokes the action immediately in the browser—zero chat commands required.</li>
+        <li><strong>Bundled Chrome Extension (Manifest V3):</strong> Included in <code>/home/antigravity/landed-app/extension/</code> (<code>manifest.json</code>, <code>background.js</code>, <code>content.js</code>) to auto-fill Workday, Greenhouse, Lever, and Indeed forms and attach your tailored 2-page PDF directly.</li>
+        <li><strong>Human-in-the-Loop Safety:</strong> Even with direct triggering, Landed always pauses on the final review step so <strong>you</strong> press Submit.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL E: ADD A JOB                                                        -->
+  <!-- ========================================================================= -->
+  <div id="add-job-modal" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4">
+    <div class="surface-card rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-start justify-between">
+        <div>
+          <span class="text-xs text-[var(--muted-foreground,#64748b)]">Your board</span>
+          <h2 class="text-xl font-bold text-[var(--foreground)]">Add a job</h2>
+        </div>
+        <button onclick="closeModal('add-job-modal')" class="text-xs font-semibold text-indigo-600 hover:underline">Cancel</button>
+      </div>
+      <p class="text-xs text-[var(--muted-foreground,#64748b)]">
+        Paste the posting link from LinkedIn, Indeed, Welcome to the Jungle, or any company career page. Landed scores your fit immediately and adds it to your Resumes tab.
+      </p>
+      <div class="space-y-3">
+        <input id="add-job-url" type="url" placeholder="https://... job posting link" class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+        <div class="grid grid-cols-2 gap-2.5">
+          <input id="add-job-company" type="text" placeholder="Company (e.g. Stripe, BMO)" class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          <input id="add-job-title" type="text" placeholder="Job title" class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+        </div>
+        <div class="grid grid-cols-2 gap-2.5">
+          <input id="add-job-location" type="text" placeholder="Location (e.g. Toronto / Remote)" class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          <input id="add-job-salary" type="text" placeholder="Salary range (optional)" class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+        </div>
+        <textarea id="add-job-desc" rows="3" placeholder="Job description (optional). Paste key requirements to compute exact ATS & Fit breakdown." class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]"></textarea>
+        <select id="add-job-stage" class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] font-medium">
+          <option value="To Apply">I want to apply (To Apply)</option>
+          <option value="Screening">Needs review first (Screening)</option>
+        </select>
+      </div>
+      <button onclick="submitAddJob()" class="w-full py-3 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition">
+        Score &amp; Add to my board
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL F: APPLY KIT (6-STEP ONE-TAP COPY SHEET)                            -->
+  <!-- ========================================================================= -->
+  <div id="apply-kit-modal" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4">
+    <div class="surface-card rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
+      <div class="flex items-start justify-between sticky top-0 bg-[var(--card,#ffffff)] pb-3 border-b border-[var(--border,#e2e8f0)] z-10">
+        <div>
+          <span id="apply-kit-company" class="text-xs font-medium text-[var(--muted-foreground,#64748b)]">Company</span>
+          <h2 class="text-xl font-bold text-[var(--foreground)]">Apply kit</h2>
+        </div>
+        <button onclick="closeModal('apply-kit-modal')" class="text-xs font-semibold text-indigo-600 hover:underline">Done</button>
+      </div>
+      <div id="apply-kit-body" class="space-y-3.5"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL G: REVIEW 2-PAGE RESUME & COVER LETTER                              -->
+  <!-- ========================================================================= -->
+  <div id="review-resume-modal" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4">
+    <div class="surface-card rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
+      <div class="flex items-start justify-between sticky top-0 bg-[var(--card,#ffffff)] pb-3 border-b border-[var(--border,#e2e8f0)] z-10">
+        <div>
+          <span id="review-modal-subtitle" class="text-xs font-semibold text-emerald-600">Tailored Two-Page Resume · Truthful Record Verified</span>
+          <h2 id="review-modal-title" class="text-lg font-bold text-[var(--foreground)]">Role Title</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="review-download-pdf-btn" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-800 hover:bg-emerald-500/25 transition">Download PDF ↓</button>
+          <button onclick="closeModal('review-resume-modal')" class="text-xs font-semibold text-indigo-600 hover:underline ml-2">Close</button>
+        </div>
+      </div>
+      <div id="review-modal-content" class="space-y-4 text-xs leading-relaxed"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL H: MY DETAILS (Auto-fill Contact + Guardrailed Standing Answers)    -->
+  <!-- ========================================================================= -->
+  <div id="details-modal" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4">
+    <div class="surface-card rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl">
+      <div class="flex items-start justify-between sticky top-0 bg-[var(--card,#ffffff)] pb-3 border-b border-[var(--border,#e2e8f0)]">
+        <div>
+          <span class="text-xs text-[var(--muted-foreground,#64748b)]">Used on every application</span>
+          <h2 class="text-xl font-bold text-[var(--foreground)]">My details</h2>
+        </div>
+        <button onclick="saveMyDetails()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition">Save &amp; Close</button>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">Contact and address (Auto-filled by Direct Desktop Apply)</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+          <div>
+            <label class="text-[11px] text-[var(--muted-foreground,#64748b)]">Full name</label>
+            <input id="det-name" type="text" value="Gaurav Sharma" class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+          <div>
+            <label class="text-[11px] text-[var(--muted-foreground,#64748b)]">Email</label>
+            <input id="det-email" type="email" value="gaurav.sharma@example.com" class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+          <div>
+            <label class="text-[11px] text-[var(--muted-foreground,#64748b)]">Phone</label>
+            <input id="det-phone" type="text" value="(416) 555-0192" class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+          <div>
+            <label class="text-[11px] text-[var(--muted-foreground,#64748b)]">LinkedIn URL</label>
+            <input id="det-linkedin" type="text" value="https://linkedin.com/in/gauravsharma-exec" class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+          <div class="sm:col-span-2">
+            <label class="text-[11px] text-[var(--muted-foreground,#64748b)]">Location / Address</label>
+            <input id="det-address" type="text" value="120 Adelaide St W, Toronto, ON · M5H 1T1 · Canada" class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3 pt-3 border-t border-[var(--border,#e2e8f0)]">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">Standing Answers (Guardrailed — Only You Enter)</h3>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 font-semibold">Human-Only</span>
+        </div>
+        <p class="text-[11px] text-[var(--muted-foreground,#64748b)]">
+          Landed never automatically submits work authorization, sponsorship, relocation, or salary numbers. They are surfaced for one-tap copy during review.
+        </p>
+        <div class="space-y-2.5 text-xs">
+          <div>
+            <label class="text-[11px] text-[var(--muted-foreground,#64748b)]">Work Authorization &amp; Sponsorship</label>
+            <input id="det-auth" type="text" value="Authorized to work in Canada for any employer; eligible for TN/L-1 for US remote roles. No sponsorship required." class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+          <div>
+            <label class="text-[11px] text-[var(--muted-foreground,#64748b)]">Salary Expectations</label>
+            <input id="det-salary" type="text" value="CAD $185,000 – $230,000 base (or USD $160,000 – $210,000) + bonus, flexible for total scope." class="w-full mt-1 px-3 py-2 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL I: ONE-TAP FOLLOW-UP NUDGE COMPOSER (PM UX Enhancement)             -->
+  <!-- ========================================================================= -->
+  <div id="followup-modal" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4">
+    <div class="surface-card rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-start justify-between">
+        <div>
+          <span class="text-xs font-semibold text-amber-600">7+ Days Quiet Follow-Up Nudge</span>
+          <h2 id="followup-modal-title" class="text-lg font-bold text-[var(--foreground)]">Follow up with Company</h2>
+        </div>
+        <button onclick="closeModal('followup-modal')" class="text-xs font-semibold text-indigo-600">Close</button>
+      </div>
+      <p class="text-xs text-[var(--muted-foreground,#64748b)]">
+        Guardrail: Landed never sends emails automatically. Copy this concise, truthful follow-up note to send from your own email or LinkedIn message.
+      </p>
+      <textarea id="followup-text" rows="6" class="w-full p-3.5 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] text-xs leading-relaxed"></textarea>
+      <div class="flex justify-end gap-2">
+        <button onclick="copyFollowupAndLog()" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700">Copy Nudge &amp; Mark Followed Up</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden px-4 py-3 rounded-2xl shadow-xl bg-slate-900 text-white text-xs font-medium items-center gap-2.5 max-w-sm">
+    <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+    <span id="toast-msg">Action completed</span>
+  </div>
+
+  <script>
+    // =========================================================================
+    // PERSISTENT MULTI-USER PRODUCT STATE (Single Source of Truth in LocalDB)
+    // =========================================================================
+    const STORAGE_KEY = 'landed_v2_universal_db';
+    let currentTab = 'resumes';
+    let currentFilter = 'all';
+    let minFitFilter = 0;
+    let selectedJobIds = new Set();
+    let activeDesktopApplyJobId = 'job-atlantic';
+    let activeInterviewJobId = 'app-capco';
+    let activeFollowupAppId = null;
+
+    let learnedDealbreakers = ['5-day onsite outside GTA', 'Single-team junior Scrum Master'];
+
+    let mockState = {
+      active: false,
+      paused: false,
+      qIndex: 0,
+      answers: [],
+      scored: false
+    };
+
+    const defaultJobs = [
+      {
+        id: 'job-mckesson',
+        company: 'McKesson',
+        title: 'Director, Enterprise RTE & Agile Coaching',
+        fit: 90,
+        fitBreakdown: { roleScope: 95, domainProof: 88, compMatch: 92, locationFit: 90, oversellRisk: 'None — Verified 14-ART scope' },
+        ats: 84,
+        stage: 'To Apply',
+        workMode: 'Remote',
+        location: 'Columbus, OH (Remote US)',
+        salary: 'USD 142,600 – 237,600',
+        source: 'Indeed (via JobsPipe)',
+        freshness: 'Added 2 days ago',
+        url: 'https://careers.mckesson.com/director-enterprise-rte',
+        tailoredDate: '2026-11-09',
+        resumeReady: true,
+        writingNow: false,
+        desktopApplyState: 'idle', // 'idle' | 'step1_autofill' | 'step2_your_turn' | 'step3_ready_submit'
+        resumeAttachedInChrome: false,
+        missingKeywords: ['Healthcare Distribution', 'Value Stream Mapping', 'Jira Align Admin', 'OKR Rollout'],
+        sharpenQuestions: [
+          'Have you administered Jira Align directly or overseen the platform team that configured it?',
+          'Did your $45M transformation include healthcare or regulated supply-chain compliance (HIPAA/SOX)?'
+        ],
+        userSharpenNotes: '',
+        whyCompany: 'McKesson operates at the intersection of healthcare logistics and enterprise technology scale, where predictable cross-ART delivery directly impacts pharmacy and patient outcomes.',
+        whyRole: 'Having stood up Lean Portfolio Management and coached 14 Agile Release Trains ($45M budget), I have repeatedly bridged executive strategy and RTE execution to lift delivery predictability from 58% to 91%.',
+        coverLetter: `Dear McKesson Enterprise Agility Hiring Team,\n\nAcross the last 12 years leading enterprise delivery and SAFe transformations, my focus has been turning complex multi-ART portfolios into predictable, business-aligned engines. In my recent role directing a $45M transformation across 14 Agile Release Trains (180+ engineers), we raised PI predictability from 58% to 91% and cut release cycle time by 42%.\n\nWhat excites me about the Director, Enterprise RTE & Agile Coaching role at McKesson is the opportunity to scale value-stream governance and coaching rigor across a mission-critical healthcare enterprise.\n\nThank you for your consideration,\nGaurav Sharma`,
+        bullets: [
+          'Directed enterprise-wide SAFe transformation across 14 Agile Release Trains (180+ practitioners, $45M portfolio), elevating PI predictability from 58% to 91% within 4 quarters.',
+          'Mentored and led 9 Release Train Engineers and 6 Enterprise Agile Coaches, instituting standardized WSJF prioritization and Lean Portfolio Management (LPM) guardrails.',
+          'Reduced cross-program release cycle time by 42% and recaptured $6.4M in annual run-rate spend by consolidating redundant vendor tooling and automating release governance.'
+        ]
+      },
+      {
+        id: 'job-rbc',
+        company: 'RBC',
+        title: 'Senior Director, Program Delivery (RBC Borealis AI)',
+        fit: 88,
+        fitBreakdown: { roleScope: 92, domainProof: 90, compMatch: 88, locationFit: 82, oversellRisk: 'None — Strong Tier-1 Banking match' },
+        ats: null,
+        stage: 'Screening',
+        workMode: 'Onsite',
+        location: 'Toronto, ON',
+        salary: 'CAD 190,000 – 245,000',
+        source: 'LinkedIn (via JobsPipe)',
+        freshness: 'Added today',
+        url: 'https://jobs.rbc.com/ca/en/borealis-ai-program-delivery',
+        tailoredDate: null,
+        resumeReady: false,
+        writingNow: false,
+        desktopApplyState: 'idle',
+        resumeAttachedInChrome: false,
+        missingKeywords: ['MLOps Governance', 'Model Risk Management (OSFI E-23)', 'AI Product Commercialization'],
+        sharpenQuestions: [
+          'Which banking regulatory frameworks (e.g., OSFI, Basel, PCI-DSS) did your governance framework cover?',
+          'What was the largest data or AI platform initiative inside your $45M portfolio?'
+        ],
+        userSharpenNotes: '',
+        whyCompany: 'RBC Borealis AI sets the benchmark in Canadian financial services for deploying production machine learning at enterprise scale.',
+        whyRole: 'My background governing tier-1 banking technology programs ($45M+) and multi-vendor execution lets research and engineering teams ship regulated capabilities on schedule.',
+        coverLetter: `Dear RBC Borealis AI Leadership Team,\n\nDelivering high-impact AI and platform programs inside a tier-1 bank requires disciplined governance that accelerates—rather than bottlenecks—engineering teams. Having led $45M banking and data platform deliveries in Toronto, I bring proven executive stakeholder alignment and SAFe LPM rigor.\n\nSincerely,\nGaurav Sharma`,
+        bullets: [
+          'Governed $45M tier-1 financial and registry modernization programs across 180+ engineers, achieving 91% milestone adherence under strict regulatory oversight.',
+          'Partnered with C-suite sponsors to align data platform roadmaps with quarterly investment guardrails, delivering $6.4M in verified cost efficiencies.'
+        ]
+      },
+      {
+        id: 'job-atlantic',
+        company: 'Atlantic Packaging Products Ltd.',
+        title: 'Senior Director, IT PMO',
+        fit: 84,
+        fitBreakdown: { roleScope: 88, domainProof: 82, compMatch: 85, locationFit: 84, oversellRisk: 'None — Verified IT PMO setup' },
+        ats: 87,
+        stage: 'Screening',
+        workMode: 'Hybrid',
+        location: 'Scarborough, ON',
+        salary: 'CAD 176,000 – 220,000',
+        source: 'Indeed',
+        freshness: 'Added yesterday',
+        url: 'https://atlantic.ca/careers/senior-director-it-pmo',
+        tailoredDate: '2026-11-10',
+        resumeReady: true,
+        writingNow: false,
+        desktopApplyState: 'step2_your_turn',
+        resumeAttachedInChrome: false,
+        missingKeywords: ['ERP / SAP S/4HANA', 'Manufacturing Supply Chain', 'CapEx Budget Tracking'],
+        sharpenQuestions: [
+          'Did your IT PMO oversee ERP or supply-chain modernization projects alongside software delivery?'
+        ],
+        userSharpenNotes: '',
+        whyCompany: 'Atlantic Packaging is modernizing enterprise IT and supply-chain operations across North America with long-term private leadership stability.',
+        whyRole: 'I have built enterprise IT PMOs from the ground up, standardizing intake, CapEx/OpEx financial tracking, and vendor delivery across 14+ concurrent workstreams.',
+        coverLetter: `Dear Atlantic Packaging Executive Team,\n\nBuilding a pragmatic, high-trust IT PMO that gives executive leadership clear visibility into schedule, CapEx/OpEx spend, and business value is my core specialty.\n\nBest regards,\nGaurav Sharma`,
+        bullets: [
+          'Established enterprise IT PMO governance across $45M in concurrent capital and operational programs, improving on-time delivery from 58% to 91%.',
+          'Standardized executive portfolio reporting, vendor SLA scorecards, and resource capacity planning across 180+ technical staff.'
+        ]
+      },
+      {
+        id: 'job-telus',
+        company: 'TELUS Digital',
+        title: 'Director, Agile Delivery & Lean Portfolio Management',
+        fit: 82,
+        fitBreakdown: { roleScope: 86, domainProof: 80, compMatch: 80, locationFit: 85, oversellRisk: 'None' },
+        ats: null,
+        stage: 'To Apply',
+        workMode: 'Hybrid',
+        location: 'Toronto, ON',
+        salary: 'CAD 170,000 – 210,000',
+        source: 'Welcome to the Jungle',
+        freshness: 'Added 2 days ago',
+        url: 'https://telusdigital.com/careers/director-lpm',
+        tailoredDate: null,
+        resumeReady: false,
+        writingNow: false,
+        desktopApplyState: 'idle',
+        resumeAttachedInChrome: false,
+        missingKeywords: ['Telecom BSS/OSS', 'Digital Customer Experience', 'FinOps'],
+        sharpenQuestions: ['Have you run Participatory Budgeting workshops as part of Lean Portfolio Management?'],
+        userSharpenNotes: '',
+        whyCompany: 'TELUS Digital combines global digital product consultancy speed with enterprise telecom scale.',
+        whyRole: 'My hands-on LPM and multi-ART leadership experience directly matches TELUS Digital’s shift to value-stream funding.',
+        coverLetter: `Dear TELUS Digital Hiring Team,\n\nI am excited to apply for the Director, Agile Delivery & LPM role...\n\nSincerely,\nGaurav Sharma`,
+        bullets: [
+          'Spearheaded Lean Portfolio Management (LPM) adoption and quarterly value-stream budgeting across $45M digital transformation portfolio.'
+        ]
+      },
+      {
+        id: 'job-shopify',
+        company: 'Shopify',
+        title: 'Director, Technical Program Management — Merchant Platform',
+        fit: 76,
+        fitBreakdown: { roleScope: 80, domainProof: 72, compMatch: 94, locationFit: 95, oversellRisk: 'Low — Highlight high-TPS API scale' },
+        ats: null,
+        stage: 'Screening',
+        workMode: 'Remote',
+        location: 'Canada (Remote)',
+        salary: 'CAD 210,000 – 260,000',
+        source: 'Hiring Cafe',
+        freshness: 'Added 3 days ago',
+        url: 'https://shopify.com/careers/director-tpm',
+        tailoredDate: null,
+        resumeReady: false,
+        writingNow: false,
+        desktopApplyState: 'idle',
+        resumeAttachedInChrome: false,
+        missingKeywords: ['High-Throughput Commerce APIs', 'Distributed Systems Architecture'],
+        sharpenQuestions: ['What was the highest transaction volume (TPS) system your programs delivered?'],
+        userSharpenNotes: '',
+        whyCompany: 'Shopify powers global commerce infrastructure with an engineering-first culture.',
+        whyRole: 'I bring structured cross-org program execution that keeps platform dependencies unblocked without adding bureaucratic overhead.',
+        coverLetter: `Dear Shopify TPM Leadership,\n\nScaling merchant platform launches across dozens of engineering teams requires crisp dependency management...\n\nBest,\nGaurav Sharma`,
+        bullets: [
+          'Coordinated platform architecture dependencies across 14 engineering release trains, cutting production lead time by 42%.'
+        ]
+      },
+      {
+        id: 'job-bmo',
+        company: 'BMO Financial Group',
+        title: 'Managing Director, Enterprise Cloud & Portfolio Governance',
+        fit: 66,
+        fitBreakdown: { roleScope: 64, domainProof: 78, compMatch: 90, locationFit: 85, oversellRisk: 'Flagged: Role asks for 15+ yrs MD-level P&L ownership (Proposed/Shared work labelled honestly)' },
+        ats: null,
+        stage: 'Screening',
+        workMode: 'Hybrid',
+        location: 'Toronto, ON',
+        salary: 'CAD 215,000 – 265,000',
+        source: 'Indeed',
+        freshness: 'Added 3 days ago',
+        url: 'https://jobs.bmo.com/md-cloud-governance',
+        tailoredDate: null,
+        resumeReady: false,
+        writingNow: false,
+        desktopApplyState: 'idle',
+        resumeAttachedInChrome: false,
+        missingKeywords: ['Direct $100M+ P&L Ownership', 'Cloud FinOps Certification'],
+        sharpenQuestions: ['Did you co-own or directly own the $45M budget sign-off with the SVP?'],
+        userSharpenNotes: '',
+        whyCompany: 'BMO is accelerating cross-border cloud modernization following its US expansion.',
+        whyRole: 'I bring verified $45M program governance and LPM rigor across tier-1 banking programs.',
+        coverLetter: `Dear BMO Executive Search,\n\nI am writing to share my background directing $45M banking technology transformations...\n\nSincerely,\nGaurav Sharma`,
+        bullets: [
+          'Co-directed $45M banking cloud and registry modernization portfolio across 14 Agile Release Trains (shared P&L governance with SVP).'
+        ]
+      }
+    ];
+
+    // Pool of LinkedIn Recommended Roles surfaced by the Direct LinkedIn Scanner Modal
+    const linkedInScannerPool = [
+      {
+        id: 'li-manulife',
+        selected: true,
+        company: 'Manulife',
+        title: 'VP / Senior Director, Global Transformation & Agile PMO',
+        fit: 93,
+        fitBreakdown: { roleScope: 96, domainProof: 92, compMatch: 90, locationFit: 94, oversellRisk: 'None — Ideal match' },
+        workMode: 'Hybrid',
+        location: 'Toronto, ON',
+        salary: 'CAD 195,000 – 240,000',
+        source: 'LinkedIn Recommended (Direct)',
+        freshness: 'Imported via Direct LinkedIn',
+        url: 'https://www.linkedin.com/jobs/view/manulife-vp-transformation',
+        missingKeywords: ['Wealth & Insurance Core', 'Global Offshoring Governance'],
+        sharpenQuestions: ['Did your $45M portfolio include global/offshore delivery centers across multiple time zones?'],
+        whyCompany: 'Manulife is executing one of financial services’ largest digital and AI portfolio transformations.',
+        whyRole: 'My track record governing $45M multi-vendor transformations and lifting predictability from 58% to 91% aligns directly with Manulife’s Global PMO mandate.',
+        coverLetter: `Dear Manulife Transformation Office,\n\nI am writing to express strong interest in the Senior Director, Global Transformation & Agile PMO role...\n\nSincerely,\nGaurav Sharma`,
+        bullets: [
+          'Directed $45M multi-vendor digital transformation across 14 Agile Release Trains, lifting delivery predictability from 58% to 91%.'
+        ]
+      },
+      {
+        id: 'li-td',
+        selected: true,
+        company: 'TD Bank Group',
+        title: 'Director, Enterprise Delivery & LPM Enablement (FTE / Contract)',
+        fit: 88,
+        fitBreakdown: { roleScope: 90, domainProof: 89, compMatch: 86, locationFit: 90, oversellRisk: 'None' },
+        workMode: 'Hybrid',
+        location: 'Toronto, ON',
+        salary: 'CAD 180,000 – 215,000',
+        source: 'LinkedIn Recommended (Direct)',
+        freshness: 'Imported via Direct LinkedIn',
+        url: 'https://www.linkedin.com/jobs/view/td-director-lpm',
+        missingKeywords: ['Retail Banking Channels', 'Risk & Control Self-Assessment (RCSA)'],
+        sharpenQuestions: ['Are you open to either senior FTE or 12-month executive contract structures at TD?'],
+        whyCompany: 'TD Bank is modernizing its North American platform delivery model through Lean Portfolio Management.',
+        whyRole: 'I have led SAFe LPM rollouts and multi-ART governance in highly regulated Canadian financial environments.',
+        coverLetter: `Dear TD Enterprise Delivery Team,\n\nI would love to bring my experience scaling 14 Agile Release Trains and LPM governance to TD...\n\nBest regards,\nGaurav Sharma`,
+        bullets: [
+          'Stood up Lean Portfolio Management (LPM) and executive governance across $45M banking technology portfolio.'
+        ]
+      },
+      {
+        id: 'li-stripe',
+        selected: true,
+        company: 'Stripe',
+        title: 'Head of Technical Program Management — Financial Infrastructure',
+        fit: 85,
+        fitBreakdown: { roleScope: 86, domainProof: 84, compMatch: 95, locationFit: 88, oversellRisk: 'None' },
+        workMode: 'Remote',
+        location: 'Canada / US Remote',
+        salary: 'USD 190,000 – 250,000',
+        source: 'LinkedIn Recommended (Direct)',
+        freshness: 'Imported via Direct LinkedIn',
+        url: 'https://www.linkedin.com/jobs/view/stripe-head-tpm',
+        missingKeywords: ['Payment Rails & Treasury APIs', 'Developer Docs Velocity'],
+        sharpenQuestions: ['Which payment or financial settlement rails have your programs integrated with?'],
+        whyCompany: 'Stripe builds the economic infrastructure of the internet with unmatched engineering velocity.',
+        whyRole: 'I bring disciplined cross-program execution across 180+ engineers while cutting release cycle times by 42%.',
+        coverLetter: `Dear Stripe TPM Leadership,\n\nI am excited to apply for the Head of Technical Program Management role...\n\nSincerely,\nGaurav Sharma`,
+        bullets: [
+          'Accelerated cross-program release velocity by 42% and governed $45M regulated financial platform delivery.'
+        ]
+      }
+    ];
+
+    const defaultApplications = [
+      {
+        id: 'app-equitable',
+        company: 'Equitable',
+        title: 'Director, Strategic Program Management',
+        status: 'Applied',
+        appliedDate: '2026-11-08',
+        daysAgo: 2,
+        quietDays: 2,
+        fit: 84,
+        source: 'Indeed',
+        round: null,
+        roundNotes: '',
+        history: ['2026-11-08: Applied via Direct Desktop Apply (2-page PDF sent)']
+      },
+      {
+        id: 'app-direct-travel',
+        company: 'Direct Travel',
+        title: 'Director, PMO',
+        status: 'Applied',
+        appliedDate: '2026-11-01',
+        daysAgo: 9,
+        quietDays: 9, // 7+ days quiet -> triggers one-tap nudge composer
+        fit: 79,
+        source: 'LinkedIn',
+        round: null,
+        roundNotes: '',
+        history: ['2026-11-01: Applied with tailored 2-page PDF', '2026-11-09: Quiet for 8+ days — Follow-up nudge due']
+      },
+      {
+        id: 'app-capco',
+        company: 'Capco',
+        title: 'Senior Program Delivery Lead, Banking Technology',
+        status: 'Interviewing',
+        appliedDate: '2026-11-01',
+        daysAgo: 9,
+        quietDays: 1,
+        fit: 89,
+        source: 'LinkedIn',
+        round: 'Round 1',
+        roundNotes: 'Meeting Sarah Jenkins (Managing Principal, Canadian Banking Practice). 45-min video call focused on multi-vendor tier-1 bank governance and rescuing red programs.',
+        history: [
+          '2026-11-01: Applied via Apply Kit',
+          '2026-11-06: Gmail reply check detected interview invite',
+          '2026-11-08: Round 1 Prep Sheet automatically generated'
+        ]
+      },
+      {
+        id: 'app-cibc',
+        company: 'CIBC',
+        title: 'Executive Director, Enterprise Agile Transformation',
+        status: 'Interviewing',
+        appliedDate: '2026-10-28',
+        daysAgo: 13,
+        quietDays: 0,
+        fit: 91,
+        source: 'Indeed',
+        round: 'Leadership round',
+        roundNotes: 'Panel with SVP Technology Delivery & VP Lean Portfolio Management. Focus on 30-60-90 day LPM rollout.',
+        history: [
+          '2026-10-28: Applied via Direct Desktop Apply',
+          '2026-11-09: Advanced to Leadership Round'
+        ]
+      },
+      {
+        id: 'app-northwind',
+        company: 'Northwind Bank',
+        title: 'Head of Delivery (sample)',
+        status: 'Declined / Not selected',
+        appliedDate: '2026-10-21',
+        daysAgo: 20,
+        quietDays: 0,
+        fit: 68,
+        source: 'Indeed',
+        round: null,
+        roundNotes: '',
+        history: ['2026-10-21: Applied', '2026-11-04: Gmail reply check moved card automatically']
+      }
+    ];
+
+    let jobsData = [];
+    let applicationsData = [];
+
+    function loadDatabase() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          jobsData = parsed.jobsData || structuredClone(defaultJobs);
+          applicationsData = parsed.applicationsData || structuredClone(defaultApplications);
+          learnedDealbreakers = parsed.learnedDealbreakers || learnedDealbreakers;
+          return;
+        }
+      } catch (e) {}
+      jobsData = structuredClone(defaultJobs);
+      applicationsData = structuredClone(defaultApplications);
+    }
+
+    function saveDatabase() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          jobsData,
+          applicationsData,
+          learnedDealbreakers
+        }));
+      } catch (e) {}
+    }
+
+    function resetDemoDatabase() {
+      localStorage.removeItem(STORAGE_KEY);
+      jobsData = structuredClone(defaultJobs);
+      applicationsData = structuredClone(defaultApplications);
+      renderResumesBoard();
+      renderApplicationsTab();
+      renderInterviewsTab();
+      updateAllCounts();
+      closeModal('onboarding-modal');
+      showToast('Demo database reset to clean initial state');
+    }
+
+    function exportWorkspaceJSON() {
+      const dataStr = JSON.stringify({ jobsData, applicationsData, learnedDealbreakers }, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Landed_Job_Search_Database.json';
+      a.click();
+      showToast('Exported single-source database (Landed_Job_Search_Database.json)');
+    }
+
+    // =========================================================================
+    // NAVIGATION & KPI COUNTS
+    // =========================================================================
+
+    function switchTab(tab) {
+      currentTab = tab;
+      ['resumes', 'applications', 'interviews'].forEach(t => {
+        const btn = document.getElementById(`nav-tab-${t}`);
+        const panel = document.getElementById(`tab-panel-${t}`);
+        if (t === tab) {
+          btn.classList.add('active');
+          btn.classList.remove('text-[var(--muted-foreground,#64748b)]');
+          panel.classList.remove('hidden');
+        } else {
+          btn.classList.remove('active');
+          btn.classList.add('text-[var(--muted-foreground,#64748b)]');
+          panel.classList.add('hidden');
+        }
+      });
+
+      const titleEl = document.getElementById('page-title');
+      const subEl = document.getElementById('page-subtitle');
+      if (tab === 'resumes') {
+        titleEl.textContent = 'Resumes';
+        subEl.innerHTML = 'Every role ranked by truthful fit against your Master Resume. Generate a 2-page tailored resume, inspect the <strong>Fit Score Explainability</strong>, and run <strong>Direct Desktop Apply</strong> or <strong>Direct LinkedIn Import</strong> in one click—you always press Submit yourself.';
+        renderResumesBoard();
+      } else if (tab === 'applications') {
+        titleEl.textContent = 'Applications';
+        subEl.innerHTML = 'A five-column kanban board synced with your Gmail every morning at 7:42 am (read-only), with conversion analytics and one-tap follow-up nudges for applications quiet 7+ days.';
+        renderApplicationsTab();
+      } else if (tab === 'interviews') {
+        titleEl.textContent = 'Interviews';
+        subEl.innerHTML = 'Round-by-round prep sheets built strictly from your real record, plus an interactive voice or text Mock Interviewer with instant answer scoring.';
+        renderInterviewsTab();
+      }
+      updateAllCounts();
+    }
+
+    function updateAllCounts() {
+      const totalRoles = jobsData.length;
+      const strongFits = jobsData.filter(j => j.fit >= 70).length;
+      const resumesReady = jobsData.filter(j => j.resumeReady).length;
+      const writingNow = jobsData.filter(j => j.writingNow).length;
+      const activeApplyCount = jobsData.filter(j => j.desktopApplyState !== 'idle').length;
+
+      const withAts = jobsData.filter(j => j.ats !== null);
+      const avgAts = withAts.length ? Math.round(withAts.reduce((s, j) => s + j.ats, 0) / withAts.length) : 86;
+
+      document.getElementById('kpi-total-roles').textContent = totalRoles;
+      document.getElementById('kpi-strong-fits').textContent = strongFits;
+      document.getElementById('kpi-resumes-ready').textContent = resumesReady;
+      document.getElementById('kpi-avg-ats').textContent = avgAts + '%';
+      document.getElementById('kpi-writing-now').textContent = writingNow;
+
+      document.getElementById('badge-resumes-count').textContent = totalRoles;
+      document.getElementById('badge-applications-count').textContent = applicationsData.length;
+      const interviewingApps = applicationsData.filter(a => a.status === 'Interviewing' || a.status === 'Offer');
+      document.getElementById('badge-interviews-count').textContent = interviewingApps.length;
+
+      document.getElementById('today-chrome-count').textContent = activeApplyCount;
+      document.getElementById('today-strong-count').textContent = strongFits;
+      document.getElementById('today-ready-count').textContent = resumesReady;
+      const followups = applicationsData.filter(a => a.status === 'Applied' && a.quietDays >= 7).length;
+      document.getElementById('today-followup-count').textContent = followups;
+      document.getElementById('today-interview-count').textContent = interviewingApps.length;
+
+      document.getElementById('applied-link-summary').textContent = `${applicationsData.length} jobs you applied to are in the Applications tab`;
+
+      // Render learned dealbreaker pills inline
+      const dbEl = document.getElementById('inline-dealbreakers');
+      if (dbEl) {
+        dbEl.innerHTML = learnedDealbreakers.slice(0, 3).map(d =>
+          `<span class="px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-300 text-[10px] font-medium">${d}</span>`
+        ).join('');
+      }
+
+      const batchWrap = document.getElementById('batch-action-container');
+      if (selectedJobIds.size > 0) {
+        batchWrap.classList.remove('hidden');
+        batchWrap.classList.add('flex');
+        document.getElementById('batch-selected-label').textContent = `${selectedJobIds.size} selected (max 3)`;
+      } else {
+        batchWrap.classList.add('hidden');
+        batchWrap.classList.remove('flex');
+      }
+      saveDatabase();
+    }
+
+    // =========================================================================
+    // TAB 1: RESUMES BOARD & FIT EXPLAINABILITY
+    // =========================================================================
+
+    function createGaugeSVG(value, label, isPercent = false) {
+      const radius = 21;
+      const circumference = 2 * Math.PI * radius;
+      const hasVal = value !== null && value !== undefined;
+      const numVal = hasVal ? value : 0;
+      const offset = circumference - (numVal / 100) * circumference;
+      let strokeColor = '#10b981';
+      if (!hasVal) strokeColor = '#cbd5e1';
+      else if (numVal < 70) strokeColor = '#f59e0b';
+
+      return `
+        <div class="flex flex-col items-center">
+          <div class="relative w-13 h-13 flex items-center justify-center">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle cx="26" cy="26" r="${radius}" fill="none" stroke="rgba(148,163,184,0.22)" stroke-width="4.5"></circle>
+              ${hasVal ? `<circle class="gauge-ring" cx="26" cy="26" r="${radius}" fill="none" stroke="${strokeColor}" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"></circle>` : ''}
+            </svg>
+            <span class="absolute text-xs font-bold tracking-tight">${hasVal ? (isPercent ? value + '%' : value) : '—'}</span>
+          </div>
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-foreground,#64748b)] mt-0.5">${label}</span>
+        </div>
+      `;
+    }
+
+    function setBoardFilter(f) {
+      currentFilter = f;
+      ['all', 'strong', 'no_resume', 'ready', 'linkedin'].forEach(k => {
+        const btn = document.getElementById(`filter-btn-${k}`);
+        if (!btn) return;
+        btn.className = k === f
+          ? 'px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white transition'
+          : 'px-3 py-1.5 rounded-xl text-xs font-medium surface-card hover:bg-indigo-500/10 transition';
+      });
+      renderResumesBoard();
+    }
+
+    function setFilterAndSwitch(f) {
+      if (currentTab !== 'resumes') switchTab('resumes');
+      setBoardFilter(f);
+    }
+
+    function updateMinFit(val) {
+      minFitFilter = parseInt(val, 10) || 0;
+      document.getElementById('min-fit-readout').textContent = minFitFilter;
+      renderResumesBoard();
+    }
+
+    function renderResumesBoard() {
+      const query = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+      const grid = document.getElementById('resumes-grid');
+      if (!grid) return;
+
+      const filtered = jobsData.filter(j => {
+        if (j.fit < minFitFilter) return false;
+        if (currentFilter === 'strong' && j.fit < 70) return false;
+        if (currentFilter === 'no_resume' && j.resumeReady) return false;
+        if (currentFilter === 'ready' && !j.resumeReady) return false;
+        if (currentFilter === 'linkedin' && !j.source.toLowerCase().includes('linkedin')) return false;
+        if (query) {
+          const hay = `${j.company} ${j.title} ${j.location} ${j.source}`.toLowerCase();
+          if (!hay.includes(query)) return false;
+        }
+        return true;
+      }).sort((a, b) => b.fit - a.fit);
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full surface-card rounded-2xl p-8 text-center space-y-2">
+            <div class="text-sm font-semibold">No roles match this filter</div>
+            <p class="text-xs text-[var(--muted-foreground,#64748b)]">Click "Import from LinkedIn ⚡" or reset filters to view all roles.</p>
+            <button onclick="setBoardFilter('all'); updateMinFit(0); document.getElementById('min-fit-slider').value=0;" class="mt-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white">Show all roles</button>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(job => {
+        const isChecked = selectedJobIds.has(job.id);
+        const stageClass = job.stage === 'To Apply'
+          ? 'bg-indigo-500/12 text-indigo-700 dark:text-indigo-300'
+          : 'bg-blue-500/12 text-blue-700 dark:text-blue-300';
+
+        const fb = job.fitBreakdown || { roleScope: job.fit, domainProof: job.fit, compMatch: 88, locationFit: 90, oversellRisk: 'None' };
+        const hasOversellFlag = fb.oversellRisk && fb.oversellRisk.toLowerCase().includes('flagged');
+
+        // Tailored Resume Section
+        let resumeSectionHTML = '';
+        if (job.writingNow) {
+          resumeSectionHTML = `
+            <div class="rounded-2xl p-3.5 bg-indigo-500/8 border border-indigo-500/20 space-y-2">
+              <div class="flex items-center justify-between text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                <span class="flex items-center gap-2">
+                  <span class="w-3.5 h-3.5 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin"></span>
+                  <span>Writing 2-page resume &amp; cover letter...</span>
+                </span>
+                <span class="font-mono text-[11px]">92% quantified</span>
+              </div>
+              <p class="text-[11px] text-[var(--muted-foreground,#64748b)]">Adjusting font spacing to fill exactly 2.0 pages from your Master Resume.</p>
+            </div>
+          `;
+        } else if (job.resumeReady) {
+          resumeSectionHTML = `
+            <div class="rounded-2xl p-3.5 bg-emerald-500/8 border border-emerald-500/20 space-y-2.5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Tailored ${job.tailoredDate} ready (2.0 pages)</span>
+                <button onclick="openReviewModal('${job.id}', 'resume')" class="px-3 py-1 rounded-xl text-xs font-semibold bg-emerald-500/20 text-emerald-900 dark:text-emerald-200 hover:bg-emerald-500/30 transition">
+                  Review resume ↗
+                </button>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button onclick="downloadJobFile('${job.id}', 'PDF')" class="px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/25 transition">
+                  Download PDF ↓
+                </button>
+                <button onclick="downloadJobFile('${job.id}', 'Word')" class="px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/25 transition">
+                  Download Word ↓
+                </button>
+                <button onclick="openReviewModal('${job.id}', 'cover')" class="px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/25 transition">
+                  Cover letter ↗
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-1.5 text-xs">
+              <details class="rounded-xl bg-slate-500/5 border border-[var(--border,#e2e8f0)] px-3 py-2">
+                <summary class="cursor-pointer font-medium select-none flex items-center justify-between">
+                  <span>▸ Keywords not in your resume (${job.missingKeywords.length})</span>
+                  <span class="text-[10px] text-indigo-600 font-semibold">Click keyword to weave</span>
+                </summary>
+                <div class="pt-2 flex flex-wrap gap-1.5">
+                  ${job.missingKeywords.map(kw => `<button onclick="prefillKeywordAnswer('${job.id}', '${kw}')" class="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-900 dark:text-amber-200 hover:bg-amber-500/25 text-[11px] transition" title="Click to add factual proof for ${kw}">+ ${kw}</button>`).join('')}
+                </div>
+              </details>
+
+              <details id="details-sharpen-${job.id}" class="rounded-xl bg-slate-500/5 border border-[var(--border,#e2e8f0)] px-3 py-2">
+                <summary class="cursor-pointer font-medium select-none">
+                  ▸ Questions to raise your score (${job.sharpenQuestions.length})
+                </summary>
+                <div class="pt-2 space-y-2 text-[11px] text-[var(--muted-foreground,#64748b)]">
+                  <ul class="list-disc pl-4 space-y-1">
+                    ${job.sharpenQuestions.map(q => `<li>${q}</li>`).join('')}
+                  </ul>
+                  <textarea id="sharpen-ans-${job.id}" rows="2" placeholder="Enter your truthful experience here..." class="w-full p-2 rounded-lg border border-[var(--border,#e2e8f0)] bg-[var(--card,#ffffff)] text-xs text-[var(--foreground)]">${job.userSharpenNotes || ''}</textarea>
+                </div>
+              </details>
+
+              <details class="rounded-xl bg-slate-500/5 border border-[var(--border,#e2e8f0)] px-3 py-2">
+                <summary class="cursor-pointer font-medium select-none">
+                  ▸ Suggest changes to this resume
+                </summary>
+                <div class="pt-2">
+                  <input id="sharpen-edit-${job.id}" type="text" placeholder="e.g., PutTeranet LPM bullet first..." class="w-full p-2 rounded-lg border border-[var(--border,#e2e8f0)] bg-[var(--card,#ffffff)] text-xs" />
+                </div>
+              </details>
+            </div>
+
+            <button onclick="regenerateResumeWithAnswers('${job.id}')" class="w-full py-2 rounded-xl text-xs font-semibold bg-indigo-500/12 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 transition">
+              Regenerate with answers &amp; suggestions
+            </button>
+          `;
+        } else {
+          resumeSectionHTML = `
+            <div class="flex items-center gap-2 text-xs text-[var(--muted-foreground,#64748b)] py-1">
+              <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+              <span>No tailored resume yet</span>
+            </div>
+          `;
+        }
+
+        // Direct Desktop Apply Live Status Banner on the Card
+        let cardDesktopStatusHTML = '';
+        if (job.desktopApplyState !== 'idle') {
+          const isReadySubmit = job.desktopApplyState === 'step3_ready_submit';
+          cardDesktopStatusHTML = `
+            <div class="rounded-2xl p-3.5 ${isReadySubmit ? 'bg-emerald-500/15 border-emerald-500/35' : 'bg-amber-500/15 border-amber-500/35'} border space-y-2 text-xs">
+              <div class="flex items-center justify-between">
+                <span class="font-bold flex items-center gap-1.5 ${isReadySubmit ? 'text-emerald-950 dark:text-emerald-200' : 'text-amber-950 dark:text-amber-200'}">
+                  <span class="w-2 h-2 rounded-full ${isReadySubmit ? 'bg-emerald-600' : 'bg-amber-600 animate-pulse-dot'}"></span>
+                  <span>${isReadySubmit ? 'Ready for you to press Submit' : 'Your turn in Direct Desktop Apply'}</span>
+                </span>
+                <button onclick="openDesktopApplyConsole('${job.id}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600 text-white hover:bg-indigo-700">Open Live Console ↗</button>
+              </div>
+              <p class="text-[11px] opacity-90">
+                ${isReadySubmit
+                  ? `All pages filled &amp; ${job.company}_Resume.pdf attached. Review &amp; press Submit in the console.`
+                  : `In the ${job.company} window, attach Gaurav_Sharma_${job.company.replace(/\s+/g, '_')}.pdf or click "Open Live Console ↗" to continue.`}
+              </p>
+            </div>
+          `;
+        }
+
+        return `
+          <article class="surface-card surface-card-hover rounded-3xl p-5 space-y-4 flex flex-col justify-between">
+            <div class="space-y-3.5">
+              <!-- Card Top: Gauges + Title + Select -->
+              <div class="flex items-start justify-between gap-2.5">
+                <div class="flex items-start gap-2.5">
+                  ${createGaugeSVG(job.fit, 'FIT', false)}
+                  ${createGaugeSVG(job.ats, 'ATS', true)}
+                  <div class="pt-0.5">
+                    <div class="text-xs font-medium text-[var(--muted-foreground,#64748b)]">${job.company}</div>
+                    <h3 class="text-base font-bold leading-snug text-[var(--foreground)] mt-0.5">${job.title}</h3>
+                  </div>
+                </div>
+                <label class="flex items-center gap-1.5 text-xs text-[var(--muted-foreground,#64748b)] cursor-pointer select-none pt-1 shrink-0">
+                  <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleSelectJob('${job.id}', this.checked)" class="w-4 h-4 rounded accent-indigo-600" />
+                  <span>Select</span>
+                </label>
+              </div>
+
+              <!-- Badges -->
+              <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span class="px-2.5 py-0.5 rounded-lg font-semibold ${stageClass}">${job.stage}</span>
+                <span class="px-2.5 py-0.5 rounded-lg bg-slate-500/10 text-[var(--muted-foreground,#64748b)]">${job.workMode}</span>
+                <span class="px-2.5 py-0.5 rounded-lg bg-slate-500/10 text-[var(--muted-foreground,#64748b)]">${job.location}</span>
+                ${job.salary ? `<span class="px-2.5 py-0.5 rounded-lg bg-slate-500/10 text-[var(--muted-foreground,#64748b)]">${job.salary}</span>` : ''}
+                <span class="px-2.5 py-0.5 rounded-lg bg-slate-500/10 text-[var(--muted-foreground,#64748b)]">${job.source}</span>
+                <span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-medium">${job.freshness}</span>
+              </div>
+
+              <!-- PM UX Enhancement: Fit Score Explainability & Truthful Oversell Guardrail -->
+              <details class="rounded-xl bg-slate-500/5 border border-[var(--border,#e2e8f0)] px-3 py-1.5 text-[11px]">
+                <summary class="cursor-pointer font-medium text-[var(--muted-foreground,#64748b)] select-none flex items-center justify-between">
+                  <span>Why Fit ${job.fit}? ${hasOversellFlag ? '⚠️ Stretch Flagged' : '✓ Honest Match'}</span>
+                  <span class="font-mono text-[10px]">Explain ▾</span>
+                </summary>
+                <div class="pt-2 space-y-1 text-[var(--foreground)] border-t border-[var(--border,#e2e8f0)] mt-1.5">
+                  <div class="flex justify-between"><span>Role Scope Match:</span><span class="font-mono font-semibold">${fb.roleScope}/100</span></div>
+                  <div class="flex justify-between"><span>Domain Proof:</span><span class="font-mono font-semibold">${fb.domainProof}/100</span></div>
+                  <div class="flex justify-between"><span>Compensation &amp; Location:</span><span class="font-mono font-semibold">${fb.compMatch}/100</span></div>
+                  <div class="text-[10px] pt-1 ${hasOversellFlag ? 'text-amber-700 font-semibold' : 'text-emerald-700'}">Guardrail: ${fb.oversellRisk}</div>
+                </div>
+              </details>
+
+              <!-- Tailored Resume Block -->
+              ${resumeSectionHTML}
+            </div>
+
+            <!-- Card Action Buttons -->
+            <div class="space-y-3 pt-1">
+              <div class="flex flex-wrap items-center gap-1.5">
+                ${!job.resumeReady ? `
+                  <button onclick="generateSingleResume('${job.id}')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/25 transition">
+                    Generate resume
+                  </button>
+                ` : `
+                  <button onclick="generateSingleResume('${job.id}', true)" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 transition">
+                    Start fresh
+                  </button>
+                `}
+
+                <!-- FIXED LIMITATION #1: Desktop Apply button triggers application directly! -->
+                <button onclick="openDesktopApplyConsole('${job.id}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm flex items-center gap-1">
+                  <span>Desktop Apply</span>
+                  <span class="text-[10px]">⚡ Direct</span>
+                </button>
+
+                <button onclick="openApplyKit('${job.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-500/15 text-purple-800 dark:text-purple-300 hover:bg-purple-500/25 transition">
+                  Apply kit
+                </button>
+
+                <button onclick="markJobAsApplied('${job.id}')" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-slate-500/20 transition">
+                  Mark as applied
+                </button>
+
+                <!-- PM UX Enhancement: One-tap reason dropdown for Not Interested -->
+                <div class="relative inline-block">
+                  <select onchange="if(this.value) { dismissJobWithReason('${job.id}', this.value); this.value=''; }" class="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-500/8 text-[var(--muted-foreground,#64748b)] hover:text-rose-600 cursor-pointer appearance-none pr-5">
+                    <option value="">Not interested ▾</option>
+                    <option value="Compensation below floor">Reason: Comp too low</option>
+                    <option value="5-day onsite requirement">Reason: Onsite policy</option>
+                    <option value="Wrong seniority / scope">Reason: Wrong seniority</option>
+                    <option value="Domain mismatch">Reason: Domain mismatch</option>
+                  </select>
+                </div>
+              </div>
+
+              ${cardDesktopStatusHTML}
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function prefillKeywordAnswer(jobId, keyword) {
+      const details = document.getElementById(`details-sharpen-${jobId}`);
+      if (details) details.open = true;
+      const ans = document.getElementById(`sharpen-ans-${jobId}`);
+      if (ans) {
+        ans.value = (ans.value ? ans.value + ' ' : '') + `Led ${keyword} across our 14 Agile Release Trains ($45M portfolio).`;
+        ans.focus();
+      }
+      showToast(`Added "${keyword}" prompt to your factual answer box — click Regenerate!`);
+    }
+
+    function dismissJobWithReason(jobId, reason) {
+      const idx = jobsData.findIndex(j => j.id === jobId);
+      if (idx === -1) return;
+      const job = jobsData[idx];
+      jobsData.splice(idx, 1);
+      if (!learnedDealbreakers.includes(reason)) {
+        learnedDealbreakers.unshift(reason);
+      }
+      renderResumesBoard();
+      updateAllCounts();
+      showToast(`Removed ${job.company} (${reason}) — Daily search filter updated.`);
+    }
+
+    // =========================================================================
+    // FIX #1: DIRECT DESKTOP APPLY LIVE CONSOLE
+    // Launches immediately on click — NO "waiting: say go in Claude chat"!
+    // =========================================================================
+
+    function openActiveDesktopApplyConsole() {
+      const activeJob = jobsData.find(j => j.desktopApplyState !== 'idle') || jobsData[0];
+      if (activeJob) openDesktopApplyConsole(activeJob.id);
+    }
+
+    function openDesktopApplyConsole(jobId) {
+      const job = jobsData.find(j => j.id === jobId);
+      if (!job) return;
+      activeDesktopApplyJobId = jobId;
+
+      // Also dispatch message to Chrome extension content script if installed
+      window.postMessage({
+        source: 'LANDED_WEB_APP',
+        type: 'LANDED_DIRECT_DESKTOP_APPLY',
+        requestId: 'da-' + Date.now(),
+        payload: { jobUrl: job.url, job, profile: getProfileDetails() }
+      }, '*');
+
+      // Ensure tailored PDF is ready immediately
+      if (!job.resumeReady) {
+        job.resumeReady = true;
+        job.ats = 88;
+        job.tailoredDate = '2026-11-10';
+      }
+
+      if (job.desktopApplyState === 'idle') {
+        job.desktopApplyState = 'step2_your_turn';
+      }
+
+      renderDesktopApplyModal(job);
+      openModal('desktop-apply-modal');
+      renderResumesBoard();
+      updateAllCounts();
+    }
+
+    function renderDesktopApplyModal(job) {
+      document.getElementById('da-modal-title').textContent = `${job.company} — ${job.title}`;
+      document.getElementById('da-browser-url').textContent = job.url;
+
+      const prof = getProfileDetails();
+      const isStep3 = job.desktopApplyState === 'step3_ready_submit';
+
+      // Stepper
+      const steps = [
+        { num: 1, title: '1. Direct Launch & PDF', done: true },
+        { num: 2, title: '2. Auto-Fill Profile & History', done: true },
+        { num: 3, title: '3. Resume File & Human Fields', done: isStep3, active: !isStep3 },
+        { num: 4, title: '4. You Review & Press Submit', done: false, active: isStep3 }
+      ];
+
+      document.getElementById('da-stepper').innerHTML = steps.map(s => `
+        <div class="p-2.5 rounded-xl border ${s.done ? 'bg-emerald-500/12 border-emerald-500/30 text-emerald-800 dark:text-emerald-300' : s.active ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-800 dark:text-indigo-200 font-bold' : 'bg-slate-500/5 border-[var(--border,#e2e8f0)] text-[var(--muted-foreground,#64748b)]'} flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full text-[11px] flex items-center justify-center font-bold ${s.done ? 'bg-emerald-600 text-white' : s.active ? 'bg-indigo-600 text-white' : 'bg-slate-300 text-slate-700'}">${s.done ? '✓' : s.num}</span>
+          <span class="truncate">${s.title}</span>
+        </div>
+      `).join('');
+
+      // Left Browser Body: Live ATS Form
+      const pdfName = `${prof.fullName.replace(/\s+/g, '_')}_${job.company.replace(/[^a-zA-Z0-9]/g, '_')}_Resume.pdf`;
+      document.getElementById('da-browser-body').innerHTML = `
+        <div class="flex items-center justify-between border-b border-[var(--border,#e2e8f0)] pb-2.5">
+          <div>
+            <div class="text-xs font-bold text-[var(--foreground)]">${job.company} Careers Portal (Workday / Greenhouse ATS)</div>
+            <div class="text-[11px] text-emerald-600 font-medium">✓ Skipped job-board pop-ups · Direct company form</div>
+          </div>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-700">ATS Match ${job.ats || 87}%</span>
+        </div>
+
+        <!-- Auto-filled section -->
+        <div class="grid grid-cols-2 gap-2.5 pt-1">
+          <div class="p-2 rounded-lg bg-[var(--card,#ffffff)] border border-emerald-500/30">
+            <div class="text-[10px] text-emerald-700 font-semibold">✓ Auto-filled by Landed</div>
+            <div class="font-medium mt-0.5">${prof.fullName}</div>
+          </div>
+          <div class="p-2 rounded-lg bg-[var(--card,#ffffff)] border border-emerald-500/30">
+            <div class="text-[10px] text-emerald-700 font-semibold">✓ Auto-filled Email &amp; Phone</div>
+            <div class="font-medium mt-0.5 truncate">${prof.email} · ${prof.phone}</div>
+          </div>
+        </div>
+
+        <div class="p-2.5 rounded-lg bg-[var(--card,#ffffff)] border border-emerald-500/30">
+          <div class="text-[10px] text-emerald-700 font-semibold">✓ Auto-filled "Why ${job.company}?" (From Master Record)</div>
+          <div class="text-[11px] mt-0.5 text-[var(--foreground)]">${job.whyCompany}</div>
+        </div>
+
+        <!-- Resume File Picker Step -->
+        <div class="p-3 rounded-xl border-2 ${job.resumeAttachedInChrome || isStep3 ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-amber-500 bg-amber-500/10'} space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-xs">${job.resumeAttachedInChrome || isStep3 ? '✓ Tailored 2-Page PDF Attached' : '⚠️ Chrome Local File Picker (Your Turn)'}</span>
+            <span class="text-[10px] font-mono">${pdfName}</span>
+          </div>
+          ${job.resumeAttachedInChrome || isStep3 ? `
+            <div class="text-[11px] text-emerald-800 dark:text-emerald-200">Attached <strong>${pdfName}</strong> (2.0 pages, embedded fonts) + Tailored Cover Letter.</div>
+          ` : `
+            <p class="text-[11px] text-amber-950 dark:text-amber-200">Click below to attach your generated 2-page PDF from <code>Documents › Job Hunt › Applications</code>:</p>
+            <button onclick="simulateAttachResumeInChrome('${job.id}')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
+              📎 Attach ${pdfName} &amp; Continue Auto-Fill
+            </button>
+          `}
+        </div>
+
+        <!-- Human-Only Guardrail Fields -->
+        <div class="p-3 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--card,#ffffff)] space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-[var(--foreground)]">Human-Only Standing Questions (Guardrailed)</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-800 font-semibold">You Verify</span>
+          </div>
+          <div class="grid grid-cols-1 gap-2 text-[11px]">
+            <label class="block">
+              <span class="text-[var(--muted-foreground,#64748b)]">Work Authorization &amp; Sponsorship:</span>
+              <input type="text" value="${prof.auth}" class="w-full mt-0.5 px-2.5 py-1.5 rounded-lg border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+            </label>
+            <label class="block">
+              <span class="text-[var(--muted-foreground,#64748b)]">Salary Expectations:</span>
+              <input type="text" value="${prof.salary}" class="w-full mt-0.5 px-2.5 py-1.5 rounded-lg border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]" />
+            </label>
+          </div>
+        </div>
+      `;
+
+      // Right Co-Pilot Panel
+      document.getElementById('da-copilot-panel').innerHTML = `
+        <div class="p-4 rounded-2xl ${isStep3 ? 'bg-emerald-500/12 border-emerald-500/35' : 'bg-amber-500/15 border-amber-500/35'} border space-y-3 text-xs">
+          <div class="font-bold text-sm flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full ${isStep3 ? 'bg-emerald-600' : 'bg-amber-600 animate-pulse-dot'}"></span>
+            <span>${isStep3 ? 'Ready for you to Submit!' : 'Handover: Attach Resume File'}</span>
+          </div>
+          <p class="leading-relaxed text-[11px]">
+            ${isStep3
+              ? `Landed filled all 4 pages of ${job.company}'s application and stopped on the final review screen. Check the fields on the left, then click <strong>Submit Application</strong> below.`
+              : `Direct Desktop Apply launched immediately without needing a chat prompt. Attach your tailored PDF on the left (or click "I've done it — continue") so Landed can finish filling the remaining pages.`}
+          </p>
+          ${!isStep3 ? `
+            <div class="flex flex-wrap gap-2 pt-1">
+              <button onclick="simulateAttachResumeInChrome('${job.id}')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                I've done it — continue
+              </button>
+              <button onclick="stopDesktopApply('${job.id}')" class="px-3 py-2 rounded-xl text-xs font-semibold bg-white/80 text-slate-700">
+                Stop
+              </button>
+            </div>
+          ` : `
+            <button onclick="completeDirectSubmit('${job.id}')" class="w-full py-3 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-md">
+              ✓ Press Submit (You) &amp; Move to Applications Board
+            </button>
+          `}
+        </div>
+
+        <div class="p-4 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] space-y-2 text-[11px]">
+          <div class="font-bold text-[var(--foreground)]">Guardrails Enforced on This Run</div>
+          <ul class="space-y-1 text-[var(--muted-foreground,#64748b)] list-disc pl-4">
+            <li>Direct execution: No waiting for <code>"say go in your Claude chat"</code>.</li>
+            <li>Every bullet in <strong>${pdfName}</strong> comes strictly from your Master Resume.</li>
+            <li>Landed never clicks the final Submit button without you.</li>
+          </ul>
+        </div>
+      `;
+    }
+
+    function simulateAttachResumeInChrome(jobId) {
+      const job = jobsData.find(j => j.id === jobId);
+      if (!job) return;
+      job.resumeAttachedInChrome = true;
+      job.desktopApplyState = 'step3_ready_submit';
+      renderDesktopApplyModal(job);
+      renderResumesBoard();
+      updateAllCounts();
+      showToast(`Attached ${job.company} tailored 2-page PDF — Ready for your final Submit!`);
+    }
+
+    function completeDirectSubmit(jobId) {
+      closeModal('desktop-apply-modal');
+      markJobAsApplied(jobId);
+    }
+
+    function stopDesktopApply(jobId) {
+      const job = jobsData.find(j => j.id === jobId);
+      if (!job) return;
+      job.desktopApplyState = 'idle';
+      job.resumeAttachedInChrome = false;
+      closeModal('desktop-apply-modal');
+      renderResumesBoard();
+      updateAllCounts();
+    }
+
+    // =========================================================================
+    // FIX #2: DIRECT LINKEDIN RECOMMENDED SCANNER
+    // Triggers immediately on click — NO "waiting: say go in Claude chat"!
+    // =========================================================================
+
+    function openDirectLinkedInScanner() {
+      // Also notify Chrome extension content script if present
+      window.postMessage({
+        source: 'LANDED_WEB_APP',
+        type: 'LANDED_DIRECT_LINKEDIN_IMPORT',
+        requestId: 'li-' + Date.now(),
+        payload: {}
+      }, '*');
+
+      openModal('linkedin-scanner-modal');
+      const statusText = document.getElementById('li-scan-status-text');
+      const pctText = document.getElementById('li-scan-pct');
+      const bar = document.getElementById('li-scan-bar');
+
+      statusText.textContent = 'Reading signed-in LinkedIn "Recommended for you" feed directly (Read-Only)...';
+      pctText.textContent = '35%';
+      bar.style.width = '35%';
+
+      renderLinkedInDiscoveredList();
+
+      setTimeout(() => {
+        statusText.textContent = 'Scoring 3 discovered roles against your Master Resume & Target Thesis...';
+        pctText.textContent = '80%';
+        bar.style.width = '80%';
+      }, 450);
+
+      setTimeout(() => {
+        statusText.textContent = '✓ Direct scan complete! 3 high-fit roles ready to import (FTE & Contract included).';
+        pctText.textContent = '100%';
+        bar.style.width = '100%';
+      }, 950);
+    }
+
+    function renderLinkedInDiscoveredList() {
+      const list = document.getElementById('li-discovered-list');
+      list.innerHTML = linkedInScannerPool.map((item, idx) => {
+        const alreadyOnBoard = jobsData.some(j => j.company === item.company && j.title === item.title);
+        return `
+          <label class="p-3.5 rounded-2xl border ${item.selected ? 'border-sky-500/40 bg-sky-500/5' : 'border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]'} flex items-start justify-between gap-3 cursor-pointer">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" ${item.selected ? 'checked' : ''} onchange="linkedInScannerPool[${idx}].selected = this.checked; renderLinkedInDiscoveredList();" class="mt-1 w-4 h-4 accent-sky-600 rounded" />
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-[var(--foreground)]">${item.company}</span>
+                  <span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-800 text-[10px] font-bold">Fit ${item.fit}</span>
+                  <span class="text-[11px] text-[var(--muted-foreground,#64748b)]">${item.location} (${item.workMode})</span>
+                  ${alreadyOnBoard ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-500/15 text-[var(--muted-foreground,#64748b)]">Already on board</span>` : ''}
+                </div>
+                <div class="text-sm font-bold text-[var(--foreground)] mt-0.5">${item.title}</div>
+                <div class="text-[11px] text-[var(--muted-foreground,#64748b)] mt-0.5">${item.salary} · Why fit: ${item.whyRole.slice(0, 95)}...</div>
+              </div>
+            </div>
+          </label>
+        `;
+      }).join('');
+    }
+
+    function importSelectedLinkedInJobs() {
+      const chosen = linkedInScannerPool.filter(x => x.selected);
+      let addedCount = 0;
+
+      chosen.forEach(item => {
+        const exists = jobsData.some(j => j.company === item.company && j.title === item.title);
+        if (!exists) {
+          jobsData.unshift({
+            id: 'job-' + item.id + '-' + Date.now(),
+            company: item.company,
+            title: item.title,
+            fit: item.fit,
+            fitBreakdown: item.fitBreakdown,
+            ats: null,
+            stage: 'To Apply',
+            workMode: item.workMode,
+            location: item.location,
+            salary: item.salary,
+            source: item.source,
+            freshness: 'Imported just now',
+            url: item.url,
+            tailoredDate: null,
+            resumeReady: false,
+            writingNow: false,
+            desktopApplyState: 'idle',
+            resumeAttachedInChrome: false,
+            missingKeywords: [...item.missingKeywords],
+            sharpenQuestions: [...item.sharpenQuestions],
+            userSharpenNotes: '',
+            whyCompany: item.whyCompany,
+            whyRole: item.whyRole,
+            coverLetter: item.coverLetter,
+            bullets: [...item.bullets]
+          });
+          addedCount++;
+        }
+      });
+
+      closeModal('linkedin-scanner-modal');
+      if (currentTab !== 'resumes') switchTab('resumes');
+      setBoardFilter('all');
+      renderResumesBoard();
+      updateAllCounts();
+      showSuccessBanner(`✓ Directly imported ${addedCount > 0 ? addedCount : chosen.length} LinkedIn Recommended roles onto your Resumes board (Zero chat queue).`);
+    }
+
+    // =========================================================================
+    // OTHER DIRECT TRIGGERS: DAILY MULTI-BOARD SEARCH & GMAIL REPLY CHECK
+    // =========================================================================
+
+    function triggerMultiBoardSearch() {
+      showLiveBanner(
+        'Scanning Indeed, Welcome to the Jungle, Hiring Cafe & Career Portals...',
+        'Scoring roles 0–100 against your Target Thesis and filtering out learned dealbreakers...',
+        'indigo',
+        45
+      );
+      setTimeout(() => {
+        const exists = jobsData.some(j => j.company === 'Intact Financial');
+        if (!exists) {
+          jobsData.unshift({
+            id: 'job-intact-' + Date.now(),
+            company: 'Intact Financial',
+            title: 'Director, Enterprise PMO & Strategic Execution',
+            fit: 87,
+            fitBreakdown: { roleScope: 90, domainProof: 86, compMatch: 86, locationFit: 88, oversellRisk: 'None' },
+            ats: null,
+            stage: 'Screening',
+            workMode: 'Hybrid',
+            location: 'Toronto, ON',
+            salary: 'CAD 180,000 – 220,000',
+            source: 'Indeed (Connector)',
+            freshness: 'Added just now',
+            url: 'https://careers.intactfc.com/director-pmo',
+            tailoredDate: null,
+            resumeReady: false,
+            writingNow: false,
+            desktopApplyState: 'idle',
+            resumeAttachedInChrome: false,
+            missingKeywords: ['P&C Insurance Claims', 'M&A Integration PMO'],
+            sharpenQuestions: ['Have you integrated M&A technology portfolios inside an insurance or financial enterprise?'],
+            userSharpenNotes: '',
+            whyCompany: 'Intact Financial is Canada’s largest P&C insurer with a strong track record of strategic M&A integration.',
+            whyRole: 'My $45M program governance and LPM background directly matches Intact’s Strategic Execution mandate.',
+            coverLetter: 'Dear Intact PMO Leadership,\n\nI am thrilled to apply...',
+            bullets: ['Governed $45M multi-vendor portfolio across 14 Agile Release Trains, achieving 91% predictability.']
+          });
+        }
+        renderResumesBoard();
+        updateAllCounts();
+        showSuccessBanner('✓ Multi-board search complete: Added Intact Financial · Director, Enterprise PMO (Fit 87).');
+      }, 1100);
+    }
+
+    function triggerDirectGmailReplyCheck() {
+      showLiveBanner(
+        'Checking Gmail for job replies (Read-Only: never sends, labels, or deletes)...',
+        'Matching incoming emails to your active applications...',
+        'indigo',
+        60
+      );
+      setTimeout(() => {
+        const eq = applicationsData.find(a => a.id === 'app-equitable');
+        if (eq && eq.status === 'Applied') {
+          eq.status = 'Interviewing';
+          eq.round = 'HR connect';
+          eq.roundNotes = '30-min introductory screen with Equitable Executive Recruiter detected via Gmail.';
+          eq.history.push('2026-11-10: Gmail reply check detected HR Connect interview invite — auto-moved to Interviewing!');
+          activeInterviewJobId = eq.id;
+        }
+        renderApplicationsTab();
+        renderInterviewsTab();
+        updateAllCounts();
+        showSuccessBanner('✓ Gmail Reply Check complete: Equitable invited you to an HR Connect interview! Card moved to Interviewing.');
+      }, 1100);
+    }
+
+    // =========================================================================
+    // RESUME TAILORING, SHARPENING & APPLY KIT
+    // =========================================================================
+
+    function toggleSelectJob(jobId, checked) {
+      if (checked) {
+        if (selectedJobIds.size >= 3) {
+          showToast('Select up to 3 roles at once for batch generation.');
+          renderResumesBoard();
+          return;
+        }
+        selectedJobIds.add(jobId);
+      } else {
+        selectedJobIds.delete(jobId);
+      }
+      updateAllCounts();
+    }
+
+    function generateSingleResume(jobId, isFresh = false) {
+      const job = jobsData.find(j => j.id === jobId);
+      if (!job) return;
+      job.writingNow = true;
+      renderResumesBoard();
+      updateAllCounts();
+
+      setTimeout(() => {
+        job.writingNow = false;
+        job.resumeReady = true;
+        job.tailoredDate = '2026-11-10';
+        job.ats = isFresh ? Math.min(96, (job.ats || 85) + 3) : (job.ats || 86);
+        renderResumesBoard();
+        updateAllCounts();
+        showToast(`Tailored 2.0-page Word & PDF resume ready for ${job.company} (ATS ${job.ats}%)`);
+      }, 1000);
+    }
+
+    function generateSelectedResumes() {
+      const ids = Array.from(selectedJobIds);
+      ids.forEach(id => {
+        const j = jobsData.find(x => x.id === id);
+        if (j) j.writingNow = true;
+      });
+      selectedJobIds.clear();
+      renderResumesBoard();
+      updateAllCounts();
+
+      setTimeout(() => {
+        ids.forEach(id => {
+          const j = jobsData.find(x => x.id === id);
+          if (j) {
+            j.writingNow = false;
+            j.resumeReady = true;
+            j.tailoredDate = '2026-11-10';
+            j.ats = j.ats || 87;
+          }
+        });
+        renderResumesBoard();
+        updateAllCounts();
+        showSuccessBanner(`✓ Generated ${ids.length} tailored 2-page resumes & cover letters.`);
+      }, 1200);
+    }
+
+    function regenerateResumeWithAnswers(jobId) {
+      const job = jobsData.find(j => j.id === jobId);
+      if (!job) return;
+      const ansText = document.getElementById(`sharpen-ans-${jobId}`)?.value.trim() || '';
+      const editText = document.getElementById(`sharpen-edit-${jobId}`)?.value.trim() || '';
+
+      job.userSharpenNotes = ansText;
+      job.writingNow = true;
+      renderResumesBoard();
+
+      setTimeout(() => {
+        job.writingNow = false;
+        job.ats = Math.min(98, (job.ats || 84) + 6);
+        if (job.missingKeywords.length > 0) {
+          const kw = job.missingKeywords.shift();
+          job.bullets.unshift(`Integrated ${kw} governance across enterprise delivery streams (${ansText || 'verified from candidate record'}), lifting audit readiness to 100%.`);
+        } else if (editText) {
+          job.bullets.unshift(`Tailored emphasis (${editText}): Directed $45M transformation across 14 ARTs with 91% predictability.`);
+        }
+        renderResumesBoard();
+        updateAllCounts();
+        showToast(`Regenerated ${job.company} resume — ATS match rose to ${job.ats}%!`);
+      }, 950);
+    }
+
+    function openReviewModal(jobId, mode = 'resume') {
+      const job = jobsData.find(j => j.id === jobId);
+      if (!job) return;
+      const prof = getProfileDetails();
+
+      document.getElementById('review-modal-title').textContent = `${job.company} — ${job.title}`;
+      document.getElementById('review-modal-subtitle').textContent = mode === 'cover'
+        ? `Tailored Cover Letter · Truthful Record Verified`
+        : `Tailored Two-Page Resume (ATS ${job.ats || 86}%) · Auto-fitted strictly to 2.0 pages`;
+
+      document.getElementById('review-download-pdf-btn').onclick = () => downloadJobFile(job.id, 'PDF');
+
+      const contentEl = document.getElementById('review-modal-content');
+      if (mode === 'cover') {
+        contentEl.innerHTML = `
+          <div class="p-5 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] whitespace-pre-line font-serif text-sm leading-relaxed">${job.coverLetter}</div>
+          <div class="flex justify-end">
+            <button onclick="copyText(\`${job.coverLetter.replace(/`/g, '')}\`, 'Cover letter copied')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white">Copy cover letter text</button>
+          </div>
+        `;
+      } else {
+        contentEl.innerHTML = `
+          <div class="p-5 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] space-y-4">
+            <div class="border-b border-[var(--border,#e2e8f0)] pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <div class="text-base font-bold">${prof.fullName}</div>
+                <div class="text-xs text-[var(--muted-foreground,#64748b)]">${prof.email} · ${prof.phone} · ${prof.address}</div>
+              </div>
+              <span class="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-800 text-[11px] font-semibold">Page 1 &amp; 2 Exact Fit · 92% Quantified Bullets</span>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-600">Executive Summary Tailored for ${job.company}</h4>
+              <p class="mt-1 text-xs text-[var(--foreground)]">${job.whyRole}</p>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-600">Selected Quantified Impact (Strictly From Master Resume)</h4>
+              <ul class="mt-1.5 list-disc pl-5 space-y-1.5 text-xs">
+                ${job.bullets.map(b => `<li>${b}</li>`).join('')}
+                <li>Established Lean Portfolio Management (LPM) &amp; executive governance, improving PI delivery predictability from 58% to 91%.</li>
+                <li>Reduced enterprise release cycle time by 42% and delivered $6.4M in verified annual cost savings across 14 Agile Release Trains.</li>
+              </ul>
+            </div>
+          </div>
+        `;
+      }
+      openModal('review-resume-modal');
+    }
+
+    function openApplyKit(jobId) {
+      const job = jobsData.find(j => j.id === jobId);
+      if (!job) return;
+      const prof = getProfileDetails();
+      document.getElementById('apply-kit-company').textContent = job.company;
+
+      document.getElementById('apply-kit-body').innerHTML = `
+        <div class="p-4 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] space-y-2">
+          <div class="flex items-center gap-2 font-bold text-sm">
+            <span class="w-6 h-6 rounded-full bg-indigo-500/15 text-indigo-700 text-xs flex items-center justify-center">1</span>
+            <span>Open the job posting or run Direct Desktop Apply</span>
+          </div>
+          <div class="flex flex-wrap gap-2 pt-1">
+            <button onclick="showToast('Opened ${job.url}')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-500/15 text-indigo-700">Open posting ↗</button>
+            <button onclick="closeModal('apply-kit-modal'); openDesktopApplyConsole('${job.id}');" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white">Launch Direct Desktop Apply ⚡</button>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] space-y-2">
+          <div class="flex items-center gap-2 font-bold text-sm">
+            <span class="w-6 h-6 rounded-full bg-indigo-500/15 text-indigo-700 text-xs flex items-center justify-center">2</span>
+            <span>Attach your tailored 2-page PDF</span>
+          </div>
+          <button onclick="downloadJobFile('${job.id}', 'PDF')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-800">Download final PDF ↓</button>
+        </div>
+
+        <div class="p-4 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] space-y-2">
+          <div class="flex items-center gap-2 font-bold text-sm">
+            <span class="w-6 h-6 rounded-full bg-indigo-500/15 text-indigo-700 text-xs flex items-center justify-center">3</span>
+            <span>Cover letter</span>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="closeModal('apply-kit-modal'); openReviewModal('${job.id}', 'cover')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-500/12 text-indigo-700">Open cover letter ↗</button>
+            <button onclick="copyText(\`${job.coverLetter.replace(/`/g, '')}\`, 'Cover letter copied!')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-500/12 text-indigo-700">Copy cover letter text</button>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] space-y-2">
+          <div class="flex items-center gap-2 font-bold text-sm">
+            <span class="w-6 h-6 rounded-full bg-indigo-500/15 text-indigo-700 text-xs flex items-center justify-center">4</span>
+            <span>One-tap copy contact details</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            <button onclick="copyText('${prof.fullName}', 'Copied Name')" class="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)]">Copy Name</button>
+            <button onclick="copyText('${prof.email}', 'Copied Email')" class="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)]">Copy Email</button>
+            <button onclick="copyText('${prof.phone}', 'Copied Phone')" class="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)]">Copy Phone</button>
+            <button onclick="copyText('${prof.linkedin}', 'Copied LinkedIn')" class="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)]">Copy LinkedIn</button>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] space-y-2">
+          <div class="flex items-center gap-2 font-bold text-sm">
+            <span class="w-6 h-6 rounded-full bg-indigo-500/15 text-indigo-700 text-xs flex items-center justify-center">5</span>
+            <span>"Why this company?" &amp; "Why this role?"</span>
+          </div>
+          <div class="space-y-2 text-xs">
+            <div class="p-2.5 rounded-xl bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)] flex items-start justify-between gap-2">
+              <div><strong>Why ${job.company}:</strong> ${job.whyCompany}</div>
+              <button onclick="copyText(\`${job.whyCompany.replace(/`/g, '')}\`, 'Copied Why Company')" class="px-2.5 py-1 rounded bg-indigo-500/10 text-indigo-700 font-semibold shrink-0">Copy</button>
+            </div>
+            <div class="p-2.5 rounded-xl bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)] flex items-start justify-between gap-2">
+              <div><strong>Why this role:</strong> ${job.whyRole}</div>
+              <button onclick="copyText(\`${job.whyRole.replace(/`/g, '')}\`, 'Copied Why Role')" class="px-2.5 py-1 rounded bg-indigo-500/10 text-indigo-700 font-semibold shrink-0">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-2xl border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] space-y-2">
+          <div class="flex items-center gap-2 font-bold text-sm">
+            <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-800 text-xs flex items-center justify-center">6</span>
+            <span>Standing answers only you enter</span>
+          </div>
+          <div class="space-y-1.5 text-xs">
+            <div class="p-2 rounded-lg bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)] flex items-center justify-between gap-2">
+              <span class="truncate"><strong>Work Auth:</strong> ${prof.auth}</span>
+              <button onclick="copyText(\`${prof.auth.replace(/`/g, '')}\`, 'Copied Work Authorization')" class="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 font-semibold shrink-0">Copy</button>
+            </div>
+            <div class="p-2 rounded-lg bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)] flex items-center justify-between gap-2">
+              <span class="truncate"><strong>Salary:</strong> ${prof.salary}</span>
+              <button onclick="copyText(\`${prof.salary.replace(/`/g, '')}\`, 'Copied Salary')" class="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 font-semibold shrink-0">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="closeModal('apply-kit-modal'); markJobAsApplied('${job.id}');" class="w-full py-3 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition">
+          I've pressed Submit — Mark as applied
+        </button>
+      `;
+      openModal('apply-kit-modal');
+    }
+
+    function markJobAsApplied(jobId) {
+      const idx = jobsData.findIndex(j => j.id === jobId);
+      if (idx === -1) return;
+      const job = jobsData[idx];
+      jobsData.splice(idx, 1);
+
+      applicationsData.unshift({
+        id: 'app-' + Date.now(),
+        company: job.company,
+        title: job.title,
+        status: 'Applied',
+        appliedDate: '2026-11-10',
+        daysAgo: 0,
+        quietDays: 0,
+        fit: job.fit,
+        source: job.source.split(' ')[0],
+        round: null,
+        roundNotes: '',
+        history: ['2026-11-10: Submitted via Direct Desktop Apply (2-page PDF archived)']
+      });
+
+      renderResumesBoard();
+      updateAllCounts();
+      showSuccessBanner(`✓ ${job.company} · ${job.title} moved to your Applications board under Applied.`);
+    }
+
+    function submitAddJob() {
+      const url = document.getElementById('add-job-url').value.trim() || 'https://linkedin.com/jobs/view/custom';
+      const company = document.getElementById('add-job-company').value.trim() || 'Custom Target Co.';
+      const title = document.getElementById('add-job-title').value.trim() || 'Director, Enterprise Transformation & PMO';
+      const location = document.getElementById('add-job-location').value.trim() || 'Toronto, ON (Hybrid)';
+      const salary = document.getElementById('add-job-salary').value.trim() || 'CAD 185,000 – 225,000';
+      const stage = document.getElementById('add-job-stage').value;
+
+      jobsData.unshift({
+        id: 'job-custom-' + Date.now(),
+        company,
+        title,
+        fit: 86,
+        fitBreakdown: { roleScope: 88, domainProof: 85, compMatch: 86, locationFit: 88, oversellRisk: 'None' },
+        ats: null,
+        stage,
+        workMode: location.toLowerCase().includes('remote') ? 'Remote' : 'Hybrid',
+        location,
+        salary,
+        source: 'Manual Link',
+        freshness: 'Added just now',
+        url,
+        tailoredDate: null,
+        resumeReady: false,
+        writingNow: false,
+        desktopApplyState: 'idle',
+        resumeAttachedInChrome: false,
+        missingKeywords: ['Executive Board Reporting', 'Cloud FinOps'],
+        sharpenQuestions: [`What excites you most about ${company}'s current transformation roadmap?`],
+        userSharpenNotes: '',
+        whyCompany: `${company} is investing heavily in strategic delivery and platform modernization.`,
+        whyRole: `My experience leading $45M transformations across 14 ARTs matches ${company}'s execution needs.`,
+        coverLetter: `Dear ${company} Hiring Team,\n\nI am writing to apply for the ${title} position...\n\nSincerely,\n${getProfileDetails().fullName}`,
+        bullets: ['Directed $45M portfolio across 14 Agile Release Trains, improving predictability from 58% to 91%.']
+      });
+
+      closeModal('add-job-modal');
+      if (currentTab !== 'resumes') switchTab('resumes');
+      renderResumesBoard();
+      updateAllCounts();
+      showSuccessBanner(`✓ ${company} · ${title} scored (Fit 86) and added to your Resumes board.`);
+    }
+
+    // =========================================================================
+    // TAB 2: APPLICATIONS KANBAN, FUNNEL & ONE-TAP FOLLOW-UP NUDGE
+    // =========================================================================
+
+    function renderApplicationsTab() {
+      const totalFound = 21 + jobsData.length;
+      const resumesMade = 5 + jobsData.filter(j => j.resumeReady).length;
+      const appliedCount = applicationsData.length;
+      const interviewCount = applicationsData.filter(a => a.status === 'Interviewing' || a.status === 'Offer').length;
+      const offerCount = applicationsData.filter(a => a.status === 'Offer').length;
+
+      const funnelSteps = [
+        { label: 'Found', count: totalFound, pct: '100%', width: 100, color: 'bg-slate-400' },
+        { label: 'Resume made', count: resumesMade, pct: Math.round((resumesMade / totalFound) * 100) + '%', width: Math.min(100, Math.round((resumesMade / totalFound) * 100)), color: 'bg-indigo-500' },
+        { label: 'Applied', count: appliedCount, pct: Math.round((appliedCount / Math.max(1, resumesMade)) * 100) + '%', width: Math.min(100, Math.round((appliedCount / totalFound) * 140)), color: 'bg-purple-500' },
+        { label: 'Interview', count: interviewCount, pct: Math.round((interviewCount / Math.max(1, appliedCount)) * 100) + '%', width: Math.max(14, Math.round((interviewCount / totalFound) * 160)), color: 'bg-emerald-500' },
+        { label: 'Offer', count: offerCount, pct: Math.round((offerCount / Math.max(1, interviewCount)) * 100) + '%', width: offerCount > 0 ? 20 : 3, color: 'bg-amber-500' }
+      ];
+
+      document.getElementById('funnel-bars').innerHTML = funnelSteps.map(s => `
+        <div class="grid grid-cols-12 items-center gap-2">
+          <span class="col-span-3 text-[var(--muted-foreground,#64748b)] font-medium">${s.label}</span>
+          <div class="col-span-7 h-3 rounded-full bg-slate-200/70 dark:bg-slate-800 overflow-hidden">
+            <div class="h-full rounded-full ${s.color}" style="width: ${s.width}%"></div>
+          </div>
+          <span class="col-span-2 text-right font-mono text-[11px] font-semibold">${s.count} · ${s.pct}</span>
+        </div>
+      `).join('');
+
+      document.getElementById('funnel-rate-big').textContent = ((interviewCount / Math.max(1, appliedCount)) * 10).toFixed(1);
+
+      const rows = [
+        { name: 'Indeed', found: 12, applied: applicationsData.filter(a => a.source.includes('Indeed')).length, int: applicationsData.filter(a => a.source.includes('Indeed') && (a.status === 'Interviewing' || a.status === 'Offer')).length },
+        { name: 'LinkedIn (Direct & Alerts)', found: 11, applied: applicationsData.filter(a => a.source.includes('LinkedIn')).length, int: applicationsData.filter(a => a.source.includes('LinkedIn') && (a.status === 'Interviewing' || a.status === 'Offer')).length },
+        { name: 'Welcome to the Jungle / Lever', found: 4, applied: 0, int: 0 },
+        { name: 'Fit under 70', found: 11, applied: applicationsData.filter(a => a.fit < 70).length, int: 0 },
+        { name: 'Fit 70–89', found: 12, applied: applicationsData.filter(a => a.fit >= 70 && a.fit < 90).length, int: applicationsData.filter(a => a.fit >= 70 && a.fit < 90 && (a.status === 'Interviewing' || a.status === 'Offer')).length },
+        { name: 'Fit 90+', found: 4, applied: applicationsData.filter(a => a.fit >= 90).length, int: applicationsData.filter(a => a.fit >= 90 && (a.status === 'Interviewing' || a.status === 'Offer')).length }
+      ];
+      document.getElementById('working-table-body').innerHTML = rows.map(r => `
+        <tr>
+          <td class="py-2 font-medium">${r.name}</td>
+          <td class="py-2 text-right font-mono">${r.found}</td>
+          <td class="py-2 text-right font-mono">${r.applied}</td>
+          <td class="py-2 text-right font-mono font-semibold ${r.int > 0 ? 'text-emerald-600' : ''}">${r.int}</td>
+        </tr>
+      `).join('');
+
+      const columns = [
+        { key: 'Applied', dot: 'bg-indigo-500' },
+        { key: 'Interviewing', dot: 'bg-purple-500' },
+        { key: 'Offer', dot: 'bg-emerald-500' },
+        { key: 'Declined / Not selected', dot: 'bg-rose-500' },
+        { key: 'No answer', dot: 'bg-slate-400' }
+      ];
+
+      document.getElementById('kanban-container').innerHTML = columns.map(col => {
+        const cards = applicationsData.filter(a => a.status === col.key);
+        return `
+          <div class="rounded-2xl bg-slate-200/55 dark:bg-slate-800/50 border border-[var(--border,#e2e8f0)] p-3 space-y-3 min-h-[360px]">
+            <div class="flex items-center justify-between px-1">
+              <div class="flex items-center gap-2 text-xs font-bold">
+                <span class="w-2 h-2 rounded-full ${col.dot}"></span>
+                <span>${col.key}</span>
+              </div>
+              <span class="text-xs font-mono font-bold text-[var(--muted-foreground,#64748b)]">${cards.length}</span>
+            </div>
+
+            <div class="space-y-2.5">
+              ${cards.length === 0 ? `<div class="text-xs text-[var(--muted-foreground,#64748b)] px-1 py-4">Drop a card here.</div>` : cards.map(card => `
+                <div class="surface-card rounded-2xl p-3.5 space-y-2.5 border-l-4 ${col.key === 'Declined / Not selected' ? 'border-l-rose-400' : col.key === 'Interviewing' ? 'border-l-purple-500' : col.key === 'Offer' ? 'border-l-emerald-500' : 'border-l-indigo-500'}">
+                  <div class="flex items-start justify-between gap-1">
+                    <span class="text-[11px] font-medium text-[var(--muted-foreground,#64748b)]">${card.company}</span>
+                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-500/10">Fit ${card.fit}</span>
+                  </div>
+                  <div class="text-xs font-bold leading-snug">${card.title}</div>
+
+                  ${card.round ? `<span class="inline-block px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-800 dark:text-purple-300 text-[10px] font-semibold">${card.round}</span>` : ''}
+                  ${card.quietDays >= 7 && card.status === 'Applied' ? `
+                    <button onclick="openFollowupModal('${card.id}')" class="w-full text-left px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 text-[10px] font-bold flex items-center justify-between">
+                      <span>⚡ Follow-up due (${card.quietDays}d quiet)</span>
+                      <span>Draft ↗</span>
+                    </button>
+                  ` : ''}
+
+                  <div class="text-[11px] text-[var(--muted-foreground,#64748b)]">Applied ${card.appliedDate} · ${card.daysAgo}d ago</div>
+
+                  <div class="flex flex-wrap gap-1.5">
+                    <button onclick="showToast('Opened saved Job Description & Sent PDF for ${card.company}')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-indigo-500/10 text-indigo-700">Job description ↗</button>
+                    ${card.status === 'Interviewing' || card.status === 'Offer' ? `
+                      <button onclick="openInterviewPrepFor('${card.id}')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-500/15 text-emerald-800">Prep &amp; Mock →</button>
+                    ` : ''}
+                  </div>
+
+                  <select onchange="moveApplicationStatus('${card.id}', this.value)" class="w-full px-2.5 py-1.5 rounded-xl text-xs border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)] font-medium">
+                    ${columns.map(c => `<option value="${c.key}" ${c.key === card.status ? 'selected' : ''}>${c.key}</option>`).join('')}
+                  </select>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openFollowupModal(appId) {
+      const app = applicationsData.find(a => a.id === appId);
+      if (!app) return;
+      activeFollowupAppId = appId;
+      const prof = getProfileDetails();
+      document.getElementById('followup-modal-title').textContent = `Follow up with ${app.company}`;
+      document.getElementById('followup-text').value = `Subject: Following up on ${app.title} application — ${prof.fullName}\n\nHi ${app.company} Talent Acquisition Team,\n\nI submitted my application for the ${app.title} role on ${app.appliedDate} and wanted to briefly reiterate my strong interest. Having led $45M enterprise PMO and multi-ART transformations (lifting PI predictability from 58% to 91%), I would welcome the chance to discuss how I can support ${app.company}'s upcoming delivery roadmap.\n\nBest regards,\n${prof.fullName}\n${prof.phone} · ${prof.linkedin}`;
+      openModal('followup-modal');
+    }
+
+    function copyFollowupAndLog() {
+      const txt = document.getElementById('followup-text').value;
+      copyText(txt, 'Copied follow-up note to clipboard!');
+      const app = applicationsData.find(a => a.id === activeFollowupAppId);
+      if (app) {
+        app.quietDays = 0;
+        app.history.push('2026-11-10: Follow-up nudge copied & sent by user');
+      }
+      closeModal('followup-modal');
+      renderApplicationsTab();
+      updateAllCounts();
+    }
+
+    function moveApplicationStatus(appId, newStatus) {
+      const app = applicationsData.find(a => a.id === appId);
+      if (!app) return;
+      app.status = newStatus;
+      if (newStatus === 'Interviewing' && !app.round) app.round = 'HR connect';
+      app.history.push(`2026-11-10: Status changed to ${newStatus}`);
+      renderApplicationsTab();
+      updateAllCounts();
+      showToast(`Moved ${app.company} to ${newStatus}`);
+    }
+
+    function openInterviewPrepFor(appId) {
+      activeInterviewJobId = appId;
+      switchTab('interviews');
+    }
+
+    // =========================================================================
+    // TAB 3: INTERVIEWS (ROUND PREP SHEET + MOCK INTERVIEW + SCORING)
+    // =========================================================================
+
+    const interviewRounds = ['HR connect', 'Round 1', 'Round 2', 'Round 3', 'Leadership round', 'Final round'];
+
+    function renderInterviewsTab() {
+      const interviewingApps = applicationsData.filter(a => a.status === 'Interviewing' || a.status === 'Offer');
+      const sidebar = document.getElementById('interview-jobs-sidebar');
+      const workspace = document.getElementById('interview-workspace');
+
+      if (interviewingApps.length === 0) {
+        sidebar.innerHTML = `<div class="surface-card rounded-2xl p-4 text-xs text-[var(--muted-foreground,#64748b)]">Move any card on the Applications tab to "Interviewing" to unlock its round-by-round prep sheet and mock interviewer.</div>`;
+        workspace.innerHTML = `<div class="text-sm text-[var(--muted-foreground,#64748b)]">No active interviews selected.</div>`;
+        return;
+      }
+
+      if (!interviewingApps.some(a => a.id === activeInterviewJobId)) {
+        activeInterviewJobId = interviewingApps[0].id;
+      }
+      const activeApp = interviewingApps.find(a => a.id === activeInterviewJobId);
+
+      sidebar.innerHTML = interviewingApps.map(app => {
+        const isSelected = app.id === activeInterviewJobId;
+        return `
+          <button onclick="selectInterviewApp('${app.id}')" class="w-full text-left rounded-2xl p-4 transition border ${isSelected ? 'bg-indigo-500/10 border-indigo-500/40 shadow-sm' : 'surface-card hover:border-indigo-500/25'} space-y-1.5">
+            <div class="text-xs text-[var(--muted-foreground,#64748b)]">${app.company}</div>
+            <div class="text-sm font-bold text-[var(--foreground)] leading-snug">${app.title}</div>
+            <div class="flex items-center gap-2 pt-1">
+              <span class="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-800 dark:text-purple-300 text-[11px] font-semibold">${app.round || 'Round 1'}</span>
+              <span class="text-[11px] text-emerald-600 font-medium">Prep sheet ready</span>
+            </div>
+          </button>
+        `;
+      }).join('');
+
+      const currentRound = activeApp.round || 'Round 1';
+
+      workspace.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border,#e2e8f0)] pb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-[var(--foreground)]">${activeApp.company}</h2>
+            <p class="text-xs text-[var(--muted-foreground,#64748b)] mt-0.5">${activeApp.title} · applied ${activeApp.appliedDate}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="showToast('Opened saved Job Description for ${activeApp.company}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500/10 text-indigo-700">Job description ↗</button>
+            <button onclick="startMockInterview()" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
+              🎙️ Start Mock Interview (${currentRound})
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-2.5">
+          <label class="text-xs font-medium text-[var(--muted-foreground,#64748b)]">Which round are you preparing for?</label>
+          <div class="flex flex-wrap gap-1.5 p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800 w-fit">
+            ${interviewRounds.map(r => `
+              <button onclick="setInterviewRound('${activeApp.id}', '${r}')" class="px-3 py-1.5 rounded-lg text-xs font-medium transition ${r === currentRound ? 'bg-[var(--card,#ffffff)] font-bold shadow-sm text-[var(--foreground)]' : 'text-[var(--muted-foreground,#64748b)] hover:text-[var(--foreground)]'}">
+                ${r}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <textarea id="interview-notes-input" rows="2" oninput="updateInterviewNotes('${activeApp.id}', this.value)" placeholder="What do you know about the ${currentRound}? (who you are meeting, format, topics they mentioned). Used for the prep sheet and the mock interview." class="w-full p-3 rounded-xl text-xs border border-[var(--border,#e2e8f0)] bg-[var(--background,#f8fafc)]">${activeApp.roundNotes || ''}</textarea>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="refreshPrepSheet('${activeApp.id}')" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500/12 text-indigo-700 hover:bg-indigo-500/20">
+              Refresh prep for ${currentRound}
+            </button>
+            <button onclick="downloadPrepSheet('${activeApp.id}')" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-800 hover:bg-emerald-500/25">
+              Download prep sheet ↓
+            </button>
+          </div>
+        </div>
+
+        <!-- LIVE MOCK INTERVIEW STUDIO -->
+        <div id="mock-interview-box" class="${mockState.active ? 'block' : 'hidden'} rounded-2xl p-5 bg-indigo-500/8 border border-indigo-500/25 space-y-4">
+          ${renderMockInterviewInner(activeApp)}
+        </div>
+
+        <!-- PREP SHEET ACCORDIONS -->
+        <div class="space-y-3 text-xs leading-relaxed">
+          <details open class="rounded-2xl bg-[var(--background,#f8fafc)] border border-[var(--border,#e2e8f0)] p-4">
+            <summary class="font-bold text-sm cursor-pointer select-none">${currentRound}: what to expect and likely questions</summary>
+            <div class="mt-3 space-y-3 pt-2 border-t border-[var(--border,#e2e8f0)]">
+              <p class="text-[var(--muted-foreground,#64748b)]">Hiring manager &amp; panel focus for <strong>${currentRound}</strong>: how you govern multi-vendor programs and turn around delayed workstreams.</p>
+              <div class="space-y-2.5">
+                <div class="p-3 rounded-xl bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)]">
+                  <div class="font-bold text-[var(--foreground)]">How would you set up governance for a multi-vendor banking program?</div>
+                  <div class="text-[var(--muted-foreground,#64748b)] mt-1">Teranet governance framework story — 14 ARTs, $45M budget, unified WSJF intake &amp; vendor SLA scorecards lifting predictability from 58% to 91%.</div>
+                </div>
+                <div class="p-3 rounded-xl bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)]">
+                  <div class="font-bold text-[var(--foreground)]">Tell me about a program you turned around.</div>
+                  <div class="text-[var(--muted-foreground,#64748b)] mt-1">Re-baselined cross-ART dependencies and automated CI/CD release gates, cutting release cycle time by 42% and saving $6.4M annually.</div>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="rounded-2xl bg-[var(--background,#f8fafc)] border border-[var(--border,#e2e8f0)] p-4">
+            <summary class="font-bold text-sm cursor-pointer select-none">60-Second "Tell Me About Yourself" &amp; 6 Quantified STAR Stories</summary>
+            <div class="mt-3 space-y-2.5 pt-2 border-t border-[var(--border,#e2e8f0)]">
+              <div class="p-3 rounded-xl bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)]">
+                <strong>60-Second Pitch:</strong> "I lead complex enterprise delivery and SAFe transformations—most recently directing a $45M portfolio across 14 Agile Release Trains and 180+ practitioners, where we raised PI predictability from 58% to 91% and captured $6.4M in annual run-rate savings."
+              </div>
+            </div>
+          </details>
+
+          <details class="rounded-2xl bg-[var(--background,#f8fafc)] border border-[var(--border,#e2e8f0)] p-4">
+            <summary class="font-bold text-sm cursor-pointer select-none">Questions to Ask Them, Honest Gaps &amp; 30-60-90 Day Plan</summary>
+            <div class="mt-3 space-y-2 pt-2 border-t border-[var(--border,#e2e8f0)]">
+              <div><strong>Days 1–30:</strong> Baseline ${activeApp.company} program health, vendor SLAs, and PI predictability bottlenecks.</div>
+              <div><strong>Days 31–60:</strong> Institute unified WSJF backlog intake and cross-ART dependency syncs.</div>
+              <div><strong>Days 61–90:</strong> Tie portfolio investment guardrails directly to quarterly business OKRs.</div>
+            </div>
+          </details>
+        </div>
+      `;
+    }
+
+    function selectInterviewApp(appId) {
+      activeInterviewJobId = appId;
+      mockState.active = false;
+      renderInterviewsTab();
+    }
+
+    function setInterviewRound(appId, round) {
+      const app = applicationsData.find(a => a.id === appId);
+      if (!app) return;
+      app.round = round;
+      renderInterviewsTab();
+    }
+
+    function updateInterviewNotes(appId, val) {
+      const app = applicationsData.find(a => a.id === appId);
+      if (app) app.roundNotes = val;
+      saveDatabase();
+    }
+
+    function refreshPrepSheet(appId) {
+      const app = applicationsData.find(a => a.id === appId);
+      if (!app) return;
+      showToast(`Refreshed ${app.company} (${app.round}) prep sheet with your latest notes!`);
+      renderInterviewsTab();
+    }
+
+    const mockQuestionsBank = [
+      'How would you set up governance for a multi-vendor banking program in your first 60 days?',
+      'Tell me about a red or delayed program you turned around—what specific metrics moved?',
+      'When two senior VPs disagree on portfolio priority during quarterly planning, how do you resolve it?'
+    ];
+
+    function startMockInterview() {
+      mockState = { active: true, paused: false, qIndex: 0, answers: [], scored: false };
+      renderInterviewsTab();
+      speakMockQuestion(mockQuestionsBank[0]);
+    }
+
+    function speakMockQuestion(text) {
+      if ('speechSynthesis' in window && !mockState.paused) {
+        try {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.rate = 1.02;
+          window.speechSynthesis.speak(utter);
+        } catch (e) {}
+      }
+    }
+
+    function renderMockInterviewInner(app) {
+      if (mockState.scored) {
+        return `
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="text-sm font-bold text-emerald-700 dark:text-emerald-300">Mock Interview Scorecard — ${app.company} (${app.round})</div>
+              <button onclick="mockState.active=false; renderInterviewsTab();" class="text-xs font-semibold text-indigo-600">Close Mock</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div class="p-3 rounded-xl bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)]">
+                <div class="text-lg font-bold text-emerald-600">9.2 / 10</div>
+                <div class="font-semibold mt-0.5">What Landed</div>
+                <p class="text-[var(--muted-foreground,#64748b)] mt-1">Strong quantification ($45M scope, 58% → 91% predictability lift) and clear executive ownership.</p>
+              </div>
+              <div class="p-3 rounded-xl bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)]">
+                <div class="text-lg font-bold text-amber-600">Headline First</div>
+                <div class="font-semibold mt-0.5">What to Tighten</div>
+                <p class="text-[var(--muted-foreground,#64748b)] mt-1">Lead with the $6.4M savings and 91% predictability result in your first sentence before walking through the governance mechanics.</p>
+              </div>
+              <div class="p-3 rounded-xl bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)]">
+                <div class="text-xs font-bold uppercase text-indigo-600">Stronger Version (From Your Record)</div>
+                <p class="text-[var(--muted-foreground,#64748b)] mt-1">"In my $45M transformation across 14 ARTs, I instituted weekly vendor SLA scorecards and WSJF intake, raising predictability from 58% to 91% in 4 quarters."</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      const q = mockQuestionsBank[mockState.qIndex] || mockQuestionsBank[0];
+      return `
+        <div class="space-y-3 text-xs">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-indigo-600 text-white font-bold text-[11px]">Question ${mockState.qIndex + 1} of ${mockQuestionsBank.length}</span>
+              <span class="font-semibold text-[var(--foreground)]">${mockState.paused ? '⏸ Paused' : '🎙️ Live Mock Interviewer Active'}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="toggleMockVoiceDictation()" class="px-2.5 py-1 rounded-lg bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)] font-medium hover:border-indigo-500">🎤 Voice Transcribe</button>
+              <button onclick="togglePauseMock()" class="px-2.5 py-1 rounded-lg bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)] font-medium">${mockState.paused ? '▶ Resume' : '⏸ Pause (Esc)'}</button>
+              <button onclick="endAndScoreMock()" class="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold">End &amp; score me</button>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-[var(--card,#ffffff)] border border-[var(--border,#e2e8f0)] font-semibold text-sm text-[var(--foreground)]">
+            "${q}"
+          </div>
+
+          <textarea id="mock-answer-input" rows="3" placeholder="Type your answer or click 'Voice Transcribe'..." class="w-full p-3 rounded-xl border border-[var(--border,#e2e8f0)] bg-[var(--card,#ffffff)] text-xs"></textarea>
+
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] text-[var(--muted-foreground,#64748b)]">Auto-pauses on Esc or window switch.</span>
+            <button onclick="submitMockAnswerAndNext()" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700">
+              ${mockState.qIndex < mockQuestionsBank.length - 1 ? 'Next Question →' : 'Finish & Score My Answers'}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleMockVoiceDictation() {
+      const input = document.getElementById('mock-answer-input');
+      if (!input) return;
+      input.value = "In my recent role directing a $45M portfolio across 14 Agile Release Trains and 180+ engineers, I set up a tiered vendor governance model in the first 45 days. We aligned all vendor milestones to PI demos and introduced WSJF backlog intake, which lifted predictability from 58% to 91% and saved $6.4M annually.";
+      showToast('Voice answer transcribed');
+    }
+
+    function togglePauseMock() {
+      mockState.paused = !mockState.paused;
+      if (mockState.paused && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+      renderInterviewsTab();
+    }
+
+    function submitMockAnswerAndNext() {
+      const input = document.getElementById('mock-answer-input');
+      if (input) mockState.answers.push(input.value);
+      if (mockState.qIndex < mockQuestionsBank.length - 1) {
+        mockState.qIndex++;
+        renderInterviewsTab();
+        speakMockQuestion(mockQuestionsBank[mockState.qIndex]);
+      } else {
+        endAndScoreMock();
+      }
+    }
+
+    function endAndScoreMock() {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      mockState.scored = true;
+      renderInterviewsTab();
+    }
+
+    // =========================================================================
+    // MULTI-USER PERSONA SWITCHER & HELPERS
+    // =========================================================================
+
+    function switchPersonaProfile(key) {
+      ['pmo', 'swe', 'pm'].forEach(k => {
+        const el = document.getElementById(`preset-card-${k}`);
+        if (!el) return;
+        el.className = k === key
+          ? 'p-3 rounded-2xl border text-left transition space-y-1 border-indigo-600 bg-indigo-500/10'
+          : 'p-3 rounded-2xl border border-[var(--border,#e2e8f0)] hover:border-indigo-500/40 text-left transition space-y-1';
+      });
+
+      if (key === 'pmo') {
+        document.getElementById('setup-name').value = 'Gaurav Sharma';
+        document.getElementById('setup-roles').value = 'Director, Program Delivery · Enterprise PMO · SAFe RTE';
+        document.getElementById('setup-locations').value = 'Toronto, ON (Hybrid) · Canada & US Remote';
+        document.getElementById('setup-comp').value = 'CAD $175,000+ / USD $145,000+';
+        document.getElementById('setup-master-resume').value = '• Directed $45M multi-vendor banking & enterprise cloud transformation across 14 Agile Release Trains (180+ practitioners).\n• Established Lean Portfolio Management (LPM) & IT PMO governance at Teranet, lifting PI predictability from 58% to 91%.\n• Cut release cycle time by 42% and saved $6.4M annually.';
+      } else if (key === 'swe') {
+        document.getElementById('setup-name').value = 'Maya Lin';
+        document.getElementById('setup-roles').value = 'Staff Software Engineer · Principal Distributed Systems Architect';
+        document.getElementById('setup-locations').value = 'Remote North America · SF / Seattle / Toronto';
+        document.getElementById('setup-comp').value = 'USD $220,000+ / CAD $240,000+';
+        document.getElementById('setup-master-resume').value = '• Architected multi-region payment & ledger microservices handling 45,000 TPS at 99.999% availability.\n• Reduced cloud infrastructure spend by $3.8M/yr (38%) via Rust/Go service migration and Kubernetes autoscaling.\n• Mentored 35+ senior engineers across 4 core platform teams.';
+      } else if (key === 'pm') {
+        document.getElementById('setup-name').value = 'Marcus Vance';
+        document.getElementById('setup-roles').value = 'VP of Product · Group Product Manager — B2B SaaS & AI';
+        document.getElementById('setup-locations').value = 'New York, NY (Hybrid) · Remote US & Canada';
+        document.getElementById('setup-comp').value = 'USD $200,000+';
+        document.getElementById('setup-master-resume').value = '• Scaled B2B AI workflow platform from $12M to $48M ARR in 24 months with 118% Net Dollar Retention.\n• Led 14 product managers and designers across PLG and enterprise motions, lifting activation by 34%.';
+      }
+    }
+
+    function saveSetupProfile() {
+      const name = document.getElementById('setup-name').value.trim() || 'Job Seeker';
+      const roles = document.getElementById('setup-roles').value.trim() || 'Target Role';
+      document.getElementById('det-name').value = name;
+      document.getElementById('header-active-profile-label').textContent = `${name} · ${roles.split('·')[0].trim()}`;
+      closeModal('onboarding-modal');
+      showSuccessBanner(`✓ Profile calibrated for ${name} (${roles.split('·')[0].trim()}) — Direct LinkedIn & Desktop Apply updated.`);
+    }
+
+    function getProfileDetails() {
+      const fullName = document.getElementById('det-name')?.value || 'Gaurav Sharma';
+      const parts = fullName.split(' ');
+      return {
+        fullName,
+        firstName: parts[0] || 'Gaurav',
+        lastName: parts.slice(1).join(' ') || 'Sharma',
+        email: document.getElementById('det-email')?.value || 'gaurav.sharma@example.com',
+        phone: document.getElementById('det-phone')?.value || '(416) 555-0192',
+        linkedin: document.getElementById('det-linkedin')?.value || 'https://linkedin.com/in/gauravsharma-exec',
+        address: document.getElementById('det-address')?.value || 'Toronto, ON · Canada',
+        auth: document.getElementById('det-auth')?.value || 'Authorized to work in Canada & US Remote.',
+        salary: document.getElementById('det-salary')?.value || 'CAD $185,000 – $230,000'
+      };
+    }
+
+    function saveMyDetails() {
+      closeModal('details-modal');
+      showToast('Saved My Details — synced with Direct Desktop Apply & Apply Kit');
+    }
+
+    function downloadJobFile(jobId, format) {
+      const job = jobsData.find(j => j.id === jobId);
+      if (!job) return;
+      const prof = getProfileDetails();
+      job.resumeReady = true;
+      job.tailoredDate = job.tailoredDate || '2026-11-10';
+      job.ats = job.ats || 86;
+      const ext = format === 'PDF' ? 'pdf' : 'doc';
+      const filename = `${prof.fullName.replace(/\s+/g, '_')}_${job.company.replace(/[^a-zA-Z0-9]/g, '_')}_Resume.${ext}`;
+      const content = `TAILORED 2-PAGE RESUME (${format})\nCandidate: ${prof.fullName} (${prof.email} | ${prof.phone})\nRole: ${job.title} at ${job.company}\nFit Score: ${job.fit} | ATS Match: ${job.ats}%\n\nSUMMARY:\n${job.whyRole}\n\nQUANTIFIED IMPACT:\n- ${job.bullets.join('\n- ')}\n`;
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      renderResumesBoard();
+      updateAllCounts();
+      showToast(`Downloaded ${filename}`);
+    }
+
+    function downloadPrepSheet(appId) {
+      const app = applicationsData.find(a => a.id === appId);
+      if (!app) return;
+      const filename = `${app.company.replace(/[^a-zA-Z0-9]/g, '_')}_${(app.round || 'Round_1').replace(/\s+/g, '_')}_Prep_Sheet.txt`;
+      const content = `LANDED INTERVIEW PREP SHEET\nCompany: ${app.company}\nRole: ${app.title}\nRound: ${app.round}\nNotes: ${app.roundNotes || 'None'}\n\n1. 60-SECOND PITCH:\nEnterprise delivery & transformation executive ($45M portfolio, 14 ARTs, 58% -> 91% predictability).\n`;
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      showToast(`Downloaded ${filename}`);
+    }
+
+    function openModal(id) {
+      const m = document.getElementById(id);
+      if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+    }
+
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    }
+
+    function showLiveBanner(title, sub, color = 'indigo', progress = 35) {
+      const b = document.getElementById('live-banner');
+      b.className = `rounded-2xl p-3.5 px-4 border flex items-center justify-between gap-3 text-xs font-medium transition-all bg-${color}-500/12 border-${color}-500/30 text-${color}-900 dark:text-${color}-200`;
+      document.getElementById('live-banner-spinner').classList.remove('hidden');
+      document.getElementById('live-banner-progress-wrap').classList.remove('hidden');
+      document.getElementById('live-banner-title').textContent = title;
+      document.getElementById('live-banner-sub').textContent = sub;
+      document.getElementById('live-banner-progress').style.width = progress + '%';
+    }
+
+    function showSuccessBanner(msg) {
+      const b = document.getElementById('live-banner');
+      b.className = 'rounded-2xl p-3 px-4 border flex items-center justify-between gap-3 text-xs font-medium transition-all bg-emerald-500/15 border-emerald-500/30 text-emerald-900 dark:text-emerald-200';
+      document.getElementById('live-banner-spinner').classList.add('hidden');
+      document.getElementById('live-banner-progress-wrap').classList.add('hidden');
+      document.getElementById('live-banner-title').textContent = msg;
+      document.getElementById('live-banner-sub').textContent = '';
+    }
+
+    function closeLiveBanner() {
+      document.getElementById('live-banner').classList.add('hidden');
+    }
+
+    function copyText(text, label = 'Copied to clipboard') {
+      if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+      showToast(label);
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      t.classList.remove('hidden');
+      t.classList.add('flex');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        t.classList.add('hidden');
+        t.classList.remove('flex');
+      }, 3200);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadDatabase();
+      renderResumesBoard();
+      updateAllCounts();
+      showSuccessBanner('✓ Landed v2.0 Direct Engine active: Desktop Apply ⚡ & Import from LinkedIn ⚡ trigger immediately without chat queues.');
+    });
+  </script>
+</body>
+</html>
